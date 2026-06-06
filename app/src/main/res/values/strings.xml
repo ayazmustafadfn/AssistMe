@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">AssistMe</string>
+
+    <string name="channel_reminders_name">Hatırlatmalar</string>
+    <string name="channel_reminders_desc">Zamanı gelen hatırlatma bildirimleri</string>
+
+    <string name="notification_default_body">Hatırlatma zamanı geldi</string>
+    <string name="action_snooze_minutes">%1$d dk ertele</string>
+    <string name="action_done">Tamam</string>
+</resources>

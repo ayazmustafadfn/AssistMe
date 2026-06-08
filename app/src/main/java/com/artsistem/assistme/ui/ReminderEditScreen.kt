@@ -27,6 +27,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -65,6 +66,10 @@ fun ReminderEditScreen(
     }
     var repeatType by remember { mutableStateOf(RepeatType.NONE) }
     var customMinutes by remember { mutableStateOf("30") }
+    var groupId by remember { mutableStateOf<Long?>(null) }
+
+    val groups by viewModel.groups.collectAsState()
+    var showNewGroupDialog by remember { mutableStateOf(false) }
 
     // Düzenleme modunda mevcut kaydı yükle.
     LaunchedEffect(reminderId) {
@@ -74,6 +79,7 @@ fun ReminderEditScreen(
                 note = r.note
                 triggerAt = r.triggerAtMillis
                 repeatType = r.repeatType
+                groupId = r.groupId
                 if (r.repeatType == RepeatType.CUSTOM) {
                     customMinutes = r.customIntervalMinutes.toString()
                 }
@@ -152,6 +158,24 @@ fun ReminderEditScreen(
                 )
             }
 
+            Text("Grup", style = androidx.compose.material3.MaterialTheme.typography.labelLarge)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = groupId == null,
+                    onClick = { groupId = null },
+                    label = { Text("Grupsuz") }
+                )
+                groups.forEach { g ->
+                    FilterChip(
+                        selected = groupId == g.id,
+                        onClick = { groupId = if (groupId == g.id) null else g.id },
+                        label = { Text(g.name) },
+                        leadingIcon = { GroupColorDot(g.colorArgb) }
+                    )
+                }
+                OutlinedButton(onClick = { showNewGroupDialog = true }) { Text("+ Yeni grup") }
+            }
+
             Button(
                 onClick = {
                     val custom = customMinutes.toLongOrNull() ?: 0L
@@ -162,7 +186,8 @@ fun ReminderEditScreen(
                         triggerAtMillis = triggerAt,
                         repeatType = repeatType,
                         customIntervalMinutes = if (repeatType == RepeatType.CUSTOM) custom else 0L,
-                        enabled = true
+                        enabled = true,
+                        groupId = groupId
                     )
                     viewModel.save(reminder)
                     onDone()
@@ -222,6 +247,17 @@ fun ReminderEditScreen(
                 }
             }
         }
+    }
+
+    if (showNewGroupDialog) {
+        GroupEditDialog(
+            initial = null,
+            onConfirm = { name, color ->
+                viewModel.createGroup(name, color)
+                showNewGroupDialog = false
+            },
+            onDismiss = { showNewGroupDialog = false }
+        )
     }
 }
 

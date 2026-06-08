@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.artsistem.assistme.AssistMeApp
 import com.artsistem.assistme.data.Reminder
+import com.artsistem.assistme.data.ReminderGroup
 import com.artsistem.assistme.data.ReminderRepository
 import com.artsistem.assistme.reminder.ReminderScheduler
 import com.artsistem.assistme.reminder.Settings
@@ -22,6 +23,27 @@ class ReminderViewModel(
 
     val reminders: StateFlow<List<Reminder>> = repository.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val groups: StateFlow<List<ReminderGroup>> = repository.observeGroups()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun createGroup(name: String, colorArgb: Int) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch { repository.createGroup(trimmed, colorArgb) }
+    }
+
+    fun renameGroup(group: ReminderGroup, name: String, colorArgb: Int) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch {
+            repository.updateGroup(group.copy(name = trimmed, colorArgb = colorArgb))
+        }
+    }
+
+    fun deleteGroup(group: ReminderGroup) {
+        viewModelScope.launch { repository.deleteGroup(group) }
+    }
 
     fun save(reminder: Reminder) {
         viewModelScope.launch {

@@ -36,6 +36,8 @@ data class Reminder(
     /** [RepeatType.CUSTOM] için dakika cinsinden tekrar aralığı. */
     val customIntervalMinutes: Long = 0,
     val enabled: Boolean = true,
+    /** Ait olduğu grubun id'si; null ise "Grupsuz". */
+    val groupId: Long? = null,
     val createdAtMillis: Long = System.currentTimeMillis()
 ) {
     /** Bu hatırlatma tekrarlı mı? */

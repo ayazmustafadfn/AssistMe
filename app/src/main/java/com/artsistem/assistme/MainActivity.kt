@@ -43,6 +43,7 @@ class MainActivity : ComponentActivity() {
                         notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
                     }
                     requestExactAlarmIfNeeded(context)
+                    requestFullScreenIntentIfNeeded(context)
                 }
 
                 val navController = rememberNavController()
@@ -77,6 +78,26 @@ class MainActivity : ComponentActivity() {
                 runCatching {
                     context.startActivity(
                         Intent(AndroidSettings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                            data = Uri.parse("package:${context.packageName}")
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Android 14+ tam ekran alarm için ayrı bir izin ister. Verilmezse alarm
+     * tam ekran açılmaz ama yine yüksek öncelikli sesli bildirim olarak düşer.
+     */
+    private fun requestFullScreenIntentIfNeeded(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            val nm = context.getSystemService(android.app.NotificationManager::class.java)
+            if (nm != null && !nm.canUseFullScreenIntent()) {
+                runCatching {
+                    context.startActivity(
+                        Intent(AndroidSettings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
                             data = Uri.parse("package:${context.packageName}")
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         }

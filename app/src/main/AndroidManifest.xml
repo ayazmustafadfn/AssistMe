@@ -12,6 +12,8 @@
     <!-- Bildirim sesi/uyandırma -->
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Tam ekran alarm (kilit ekranı üstünde açılır) -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <application
         android:name=".AssistMeApp"
@@ -34,6 +36,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Zamanı gelince kilit ekranı üstünde açılan tam ekran alarm ekranı -->
+        <activity
+            android:name=".ui.AlarmActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.AssistMe" />
 
         <!-- Alarm tetiklendiğinde bildirimi basan alıcı -->
         <receiver

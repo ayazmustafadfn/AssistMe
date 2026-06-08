@@ -12,7 +12,8 @@ import com.artsistem.assistme.reminder.Notifications
 class AssistMeApp : Application() {
 
     val repository: ReminderRepository by lazy {
-        ReminderRepository(AppDatabase.get(this).reminderDao())
+        val db = AppDatabase.get(this)
+        ReminderRepository(db.reminderDao(), db.groupDao())
     }
 
     override fun onCreate() {

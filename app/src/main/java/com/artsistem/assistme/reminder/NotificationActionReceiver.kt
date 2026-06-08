@@ -26,10 +26,17 @@ class NotificationActionReceiver : BroadcastReceiver() {
 
         val appContext = context.applicationContext
         Notifications.cancel(appContext, reminderId)
+        // Hangi yoldan gelirse gelsin alarm sesini durdur (güvenlik ağı).
+        AlarmPlayer.stop()
 
         when (intent.action) {
             ACTION_SNOOZE -> {
-                val minutes = intent.getIntExtra(EXTRA_SNOOZE_MINUTES, Settings.DEFAULT_SNOOZE_MINUTES)
+                val minutes = intent.getIntExtra(EXTRA_SNOOZE_MINUTES, Settings.SNOOZE_SHORT_MINUTES)
+                    .coerceAtLeast(1)
+                // "Diğer…" ile seçilen özel süreyi hatırla (sabit 15/60 hariç).
+                if (minutes != Settings.SNOOZE_SHORT_MINUTES && minutes != Settings.SNOOZE_LONG_MINUTES) {
+                    Settings.setLastCustomSnoozeMinutes(appContext, minutes)
+                }
                 val pending = goAsync()
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
@@ -48,6 +55,12 @@ class NotificationActionReceiver : BroadcastReceiver() {
             }
 
             ACTION_DONE -> {
+                // Tamamlandı: tekrarlıysa bir sonraki tekrar zaten kuruludur (bu seferi geç).
+                Log.d("NotifAction", "Hatırlatma #$reminderId tamamlandı")
+            }
+
+            ACTION_DISMISS -> {
+                // Kapat: sadece alarmı sustur/kapat, başka bir şey yapma.
                 Log.d("NotifAction", "Hatırlatma #$reminderId kapatıldı")
             }
         }
@@ -56,6 +69,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
     companion object {
         const val ACTION_SNOOZE = "com.artsistem.assistme.ACTION_SNOOZE"
         const val ACTION_DONE = "com.artsistem.assistme.ACTION_DONE"
+        const val ACTION_DISMISS = "com.artsistem.assistme.ACTION_DISMISS"
         const val EXTRA_SNOOZE_MINUTES = "extra_snooze_minutes"
     }
 }

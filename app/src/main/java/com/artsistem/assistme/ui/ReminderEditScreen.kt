@@ -70,6 +70,14 @@ fun ReminderEditScreen(
 
     val groups by viewModel.groups.collectAsState()
     var showNewGroupDialog by remember { mutableStateOf(false) }
+    // Yeni grup oluşturulunca onu otomatik seç.
+    var pendingAutoSelectGroup by remember { mutableStateOf(false) }
+    LaunchedEffect(groups, pendingAutoSelectGroup) {
+        if (pendingAutoSelectGroup && groups.isNotEmpty()) {
+            groupId = groups.maxByOrNull { it.id }?.id
+            pendingAutoSelectGroup = false
+        }
+    }
 
     // Düzenleme modunda mevcut kaydı yükle.
     LaunchedEffect(reminderId) {
@@ -254,6 +262,7 @@ fun ReminderEditScreen(
             initial = null,
             onConfirm = { name, color ->
                 viewModel.createGroup(name, color)
+                pendingAutoSelectGroup = true
                 showNewGroupDialog = false
             },
             onDismiss = { showNewGroupDialog = false }

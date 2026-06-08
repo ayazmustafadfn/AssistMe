@@ -28,7 +28,7 @@ class ReminderReceiver : BroadcastReceiver() {
                 val reminder = repo.getById(reminderId)
                 if (reminder == null || !reminder.enabled) return@launch
 
-                Notifications.show(appContext, reminder, Settings.getSnoozeMinutes(appContext))
+                Notifications.show(appContext, reminder)
 
                 if (reminder.isRepeating) {
                     val next = Recurrence.nextTrigger(reminder)

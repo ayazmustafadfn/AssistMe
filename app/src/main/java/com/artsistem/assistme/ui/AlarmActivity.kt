@@ -12,25 +12,40 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.artsistem.assistme.data.RepeatType
 import com.artsistem.assistme.reminder.AlarmPlayer
 import com.artsistem.assistme.reminder.NotificationActionReceiver
 import com.artsistem.assistme.reminder.Notifications
@@ -42,14 +57,13 @@ import com.artsistem.assistme.ui.theme.AssistMeTheme
  * Hatırlatma zamanı geldiğinde dolu ekran açılan alarm ekranı.
  *
  * Kilit ekranının üstünde gösterilir, ekranı uyandırır ve [AlarmPlayer] ile
- * alarm sesini döngülü çalar. Kullanıcı "Ertele" ya da "Tamam" diyene veya
- * zaman aşımına ([AUTO_DISMISS_MS]) kadar çalmaya devam eder.
+ * alarm sesini döngülü çalar. Butonlar: Tamamlandı / 15 dk / 1 saat /
+ * (son özel süre) / Diğer… / Kapat.
  */
 class AlarmActivity : ComponentActivity() {
 
     private val autoDismiss = Handler(Looper.getMainLooper())
     private var reminderId: Long = -1L
-    private var snoozeMinutes: Int = Settings.DEFAULT_SNOOZE_MINUTES
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,13 +74,9 @@ class AlarmActivity : ComponentActivity() {
             com.artsistem.assistme.R.string.app_name
         )
         val note = intent.getStringExtra(EXTRA_NOTE).orEmpty()
-        snoozeMinutes = intent.getIntExtra(EXTRA_SNOOZE_MINUTES, Settings.DEFAULT_SNOOZE_MINUTES)
-        val repeating = intent.getBooleanExtra(EXTRA_REPEATING, false)
+        val lastCustom = Settings.getLastCustomSnoozeMinutes(this)
 
-        // Sesi başlat (zaten çalıyorsa tekrar etmez).
         AlarmPlayer.start(this)
-
-        // Güvenlik: kullanıcı hiç dokunmazsa belli süre sonra sustur.
         autoDismiss.postDelayed({ finishAlarm() }, AUTO_DISMISS_MS)
 
         setContent {
@@ -74,10 +84,10 @@ class AlarmActivity : ComponentActivity() {
                 AlarmScreen(
                     title = title,
                     note = note,
-                    snoozeMinutes = snoozeMinutes,
-                    showSnooze = true,
-                    onSnooze = { onSnooze() },
-                    onDone = { onDone() }
+                    lastCustomMinutes = lastCustom,
+                    onSnooze = { minutes -> snooze(minutes) },
+                    onDone = { done() },
+                    onDismiss = { dismiss() }
                 )
             }
         }
@@ -105,25 +115,37 @@ class AlarmActivity : ComponentActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
-    private fun onSnooze() {
-        sendAction(NotificationActionReceiver.ACTION_SNOOZE)
+    private fun snooze(minutes: Int) {
+        if (reminderId != -1L) {
+            sendBroadcast(
+                Intent(this, NotificationActionReceiver::class.java).apply {
+                    action = NotificationActionReceiver.ACTION_SNOOZE
+                    putExtra(ReminderScheduler.EXTRA_REMINDER_ID, reminderId)
+                    putExtra(NotificationActionReceiver.EXTRA_SNOOZE_MINUTES, minutes)
+                }
+            )
+        }
         finishAlarm()
     }
 
-    private fun onDone() {
+    private fun done() {
         sendAction(NotificationActionReceiver.ACTION_DONE)
         finishAlarm()
     }
 
-    /** Mevcut bildirim aksiyon mantığını yeniden kullanır. */
+    private fun dismiss() {
+        sendAction(NotificationActionReceiver.ACTION_DISMISS)
+        finishAlarm()
+    }
+
     private fun sendAction(action: String) {
         if (reminderId == -1L) return
-        val intent = Intent(this, NotificationActionReceiver::class.java).apply {
-            this.action = action
-            putExtra(ReminderScheduler.EXTRA_REMINDER_ID, reminderId)
-            putExtra(NotificationActionReceiver.EXTRA_SNOOZE_MINUTES, snoozeMinutes)
-        }
-        sendBroadcast(intent)
+        sendBroadcast(
+            Intent(this, NotificationActionReceiver::class.java).apply {
+                this.action = action
+                putExtra(ReminderScheduler.EXTRA_REMINDER_ID, reminderId)
+            }
+        )
     }
 
     private fun finishAlarm() {
@@ -135,7 +157,6 @@ class AlarmActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // Ekran her şekilde kapanırsa ses kalmasın.
         AlarmPlayer.stop()
     }
 
@@ -150,23 +171,35 @@ class AlarmActivity : ComponentActivity() {
     }
 }
 
+/** Dakika sayısını "15 dk" / "1 saat" / "1 sa 30 dk" biçiminde gösterir. */
+fun formatSnoozeLabel(minutes: Int): String = when {
+    minutes < 60 -> "$minutes dk"
+    minutes % 60 == 0 -> "${minutes / 60} saat"
+    else -> "${minutes / 60} sa ${minutes % 60} dk"
+}
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AlarmScreen(
     title: String,
     note: String,
-    snoozeMinutes: Int,
-    showSnooze: Boolean,
-    onSnooze: () -> Unit,
-    onDone: () -> Unit
+    lastCustomMinutes: Int,
+    onSnooze: (Int) -> Unit,
+    onDone: () -> Unit,
+    onDismiss: () -> Unit
 ) {
+    var showPicker by remember { mutableStateOf(false) }
+
+    val showLastCustom = lastCustomMinutes > 0 &&
+        lastCustomMinutes != Settings.SNOOZE_SHORT_MINUTES &&
+        lastCustomMinutes != Settings.SNOOZE_LONG_MINUTES
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.errorContainer
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(32.dp),
+            modifier = Modifier.fillMaxSize().padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -193,34 +226,126 @@ private fun AlarmScreen(
                 )
             }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 48.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+            // Tamamlandı (vurgulu)
+            Button(
+                onClick = onDone,
+                modifier = Modifier.fillMaxWidth().padding(top = 40.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.onErrorContainer,
+                    contentColor = MaterialTheme.colorScheme.errorContainer
+                )
             ) {
-                Button(
-                    onClick = onDone,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.onErrorContainer,
-                        contentColor = MaterialTheme.colorScheme.errorContainer
-                    )
-                ) {
-                    Text("Tamam", style = MaterialTheme.typography.titleMedium)
+                Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(20.dp))
+                Text("  Tamamlandı", style = MaterialTheme.typography.titleMedium)
+            }
+
+            // Erteleme seçenekleri
+            FlowRow(
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilledTonalButton(onClick = { onSnooze(Settings.SNOOZE_SHORT_MINUTES) }) {
+                    Text("15 dk")
                 }
-                if (showSnooze) {
-                    OutlinedButton(
-                        onClick = onSnooze,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            "$snoozeMinutes dk ertele",
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
+                FilledTonalButton(onClick = { onSnooze(Settings.SNOOZE_LONG_MINUTES) }) {
+                    Text("1 saat")
+                }
+                if (showLastCustom) {
+                    FilledTonalButton(onClick = { onSnooze(lastCustomMinutes) }) {
+                        Text(formatSnoozeLabel(lastCustomMinutes))
                     }
                 }
+                FilledTonalButton(onClick = { showPicker = true }) {
+                    Text("Diğer…")
+                }
+            }
+
+            // Kapat (sade)
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.padding(top = 24.dp)
+            ) {
+                Icon(Icons.Filled.Close, contentDescription = null, modifier = Modifier.size(20.dp))
+                Text(
+                    "  Kapat",
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
             }
         }
     }
+
+    if (showPicker) {
+        SnoozePickerDialog(
+            initialMinutes = if (lastCustomMinutes > 0) lastCustomMinutes else 30,
+            onConfirm = { minutes ->
+                showPicker = false
+                onSnooze(minutes)
+            },
+            onDismiss = { showPicker = false }
+        )
+    }
+}
+
+@Composable
+private fun SnoozePickerDialog(
+    initialMinutes: Int,
+    onConfirm: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var isHour by remember { mutableStateOf(initialMinutes >= 60 && initialMinutes % 60 == 0) }
+    var amount by remember {
+        mutableIntStateOf(if (initialMinutes >= 60 && initialMinutes % 60 == 0) initialMinutes / 60 else initialMinutes)
+    }
+
+    fun minutes(): Int = if (isHour) amount * 60 else amount
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Ne kadar ertelensin?") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                // Birim seçimi
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = !isHour,
+                        onClick = { if (isHour) { isHour = false; amount = 15 } },
+                        label = { Text("Dakika") }
+                    )
+                    FilterChip(
+                        selected = isHour,
+                        onClick = { if (!isHour) { isHour = true; amount = 1 } },
+                        label = { Text("Saat") }
+                    )
+                }
+                // Adımlayıcı
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = {
+                        amount = if (isHour) (amount - 1).coerceAtLeast(1)
+                        else (amount - 5).coerceAtLeast(5)
+                    }) {
+                        Icon(Icons.Filled.Remove, contentDescription = "Azalt")
+                    }
+                    Text(
+                        text = if (isHour) "$amount saat" else "$amount dk",
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    IconButton(onClick = {
+                        amount = if (isHour) amount + 1 else amount + 5
+                    }) {
+                        Icon(Icons.Filled.Add, contentDescription = "Artır")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(minutes()) }) { Text("Ertele") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("İptal") }
+        }
+    )
 }

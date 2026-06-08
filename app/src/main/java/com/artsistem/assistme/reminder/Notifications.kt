@@ -73,7 +73,7 @@ object Notifications {
         }
     }
 
-    fun show(context: Context, reminder: Reminder, snoozeMinutes: Int) {
+    fun show(context: Context, reminder: Reminder) {
         ensureChannel(context)
 
         val notificationId = reminder.id.toInt()
@@ -84,7 +84,6 @@ object Notifications {
             putExtra(ReminderScheduler.EXTRA_REMINDER_ID, reminder.id)
             putExtra(AlarmActivity.EXTRA_TITLE, reminder.title)
             putExtra(AlarmActivity.EXTRA_NOTE, reminder.note)
-            putExtra(AlarmActivity.EXTRA_SNOOZE_MINUTES, snoozeMinutes)
             putExtra(AlarmActivity.EXTRA_REPEATING, reminder.isRepeating)
         }
         val fullScreenIntent = PendingIntent.getActivity(
@@ -94,22 +93,29 @@ object Notifications {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val snoozeIntent = actionPendingIntent(
-            context,
-            reminder.id,
-            NotificationActionReceiver.ACTION_SNOOZE,
-            requestCode = notificationId * 10 + 1,
-            snoozeMinutes = snoozeMinutes
-        )
         val doneIntent = actionPendingIntent(
             context,
             reminder.id,
             NotificationActionReceiver.ACTION_DONE,
             requestCode = notificationId * 10 + 2
         )
+        val snooze15Intent = actionPendingIntent(
+            context,
+            reminder.id,
+            NotificationActionReceiver.ACTION_SNOOZE,
+            requestCode = notificationId * 10 + 3,
+            snoozeMinutes = Settings.SNOOZE_SHORT_MINUTES
+        )
+        val snooze60Intent = actionPendingIntent(
+            context,
+            reminder.id,
+            NotificationActionReceiver.ACTION_SNOOZE,
+            requestCode = notificationId * 10 + 4,
+            snoozeMinutes = Settings.SNOOZE_LONG_MINUTES
+        )
 
-        val snoozeLabel = context.getString(R.string.action_snooze_minutes, snoozeMinutes)
-
+        // Heads-up bildirimde ~3 aksiyon gösterilir: Tamamlandı · 15 dk · 1 saat.
+        // (Yukarı kaydırınca kapanır = Kapat; dokununca tam ekran alarm açılır.)
         val builder = NotificationCompat.Builder(context, CHANNEL_ALARM_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(reminder.title)
@@ -125,8 +131,9 @@ object Notifications {
             // Asıl alarm davranışı: tam ekran niyet.
             .setFullScreenIntent(fullScreenIntent, true)
             .setGroup(GROUP_KEY)
-            .addAction(R.drawable.ic_snooze, snoozeLabel, snoozeIntent)
-            .addAction(R.drawable.ic_done, context.getString(R.string.action_done), doneIntent)
+            .addAction(R.drawable.ic_done, context.getString(R.string.action_completed), doneIntent)
+            .addAction(R.drawable.ic_snooze, context.getString(R.string.snooze_short), snooze15Intent)
+            .addAction(R.drawable.ic_snooze, context.getString(R.string.snooze_long), snooze60Intent)
 
         if (reminder.note.isBlank()) {
             builder.setStyle(null)

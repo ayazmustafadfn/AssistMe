@@ -10,4 +10,10 @@
     <string name="notification_default_body">Hatırlatma zamanı geldi</string>
     <string name="action_snooze_minutes">%1$d dk ertele</string>
     <string name="action_done">Tamam</string>
+
+    <string name="action_completed">Tamamlandı</string>
+    <string name="action_dismiss">Kapat</string>
+    <string name="snooze_short">15 dk</string>
+    <string name="snooze_long">1 saat</string>
+    <string name="snooze_other">Diğer…</string>
 </resources>

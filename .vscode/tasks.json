@@ -1,0 +1,41 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Android: Debug APK derle (assembleDebug)",
+      "type": "shell",
+      "command": "./gradlew assembleDebug",
+      "windows": { "command": ".\\gradlew.bat assembleDebug" },
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Android: Cihaza kur (installDebug)",
+      "type": "shell",
+      "command": "./gradlew installDebug",
+      "windows": { "command": ".\\gradlew.bat installDebug" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Android: Çalıştır (kur + başlat)",
+      "type": "shell",
+      "command": "./gradlew installDebug && adb shell am start -n com.artsistem.assistme/.MainActivity",
+      "windows": { "command": ".\\gradlew.bat installDebug ; adb shell am start -n com.artsistem.assistme/.MainActivity" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Android: Temizle (clean)",
+      "type": "shell",
+      "command": "./gradlew clean",
+      "windows": { "command": ".\\gradlew.bat clean" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Android: Testler (test)",
+      "type": "shell",
+      "command": "./gradlew test",
+      "windows": { "command": ".\\gradlew.bat test" },
+      "problemMatcher": []
+    }
+  ]
+}

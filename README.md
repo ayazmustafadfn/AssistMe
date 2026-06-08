@@ -68,6 +68,33 @@ echo "sdk.dir=$ANDROID_HOME" > local.properties
 ./gradlew installDebug       # bağlı cihaza kurar
 ```
 
+## VS Code ile geliştirme
+
+Bu projeyi VS Code'da geliştirmek için:
+
+**Gereksinimler (yerel makinede):**
+- **JDK 17+** (Android Studio yoksa ayrı kur)
+- **Android SDK** (komut satırı araçları yeterli) — `ANDROID_HOME` / `ANDROID_SDK_ROOT` ortam değişkeni ayarlı olmalı
+- **adb** (platform-tools) PATH'te olmalı
+
+**Adımlar:**
+1. Klasörü VS Code'da aç. Açılışta önerilen eklentiler sorulur (`.vscode/extensions.json`):
+   Gradle for Java, Kotlin, Java Extension Pack.
+2. SDK yolunu bildir (Android Studio kurulu değilse elle):
+   ```bash
+   echo "sdk.dir=/path/to/Android/sdk" > local.properties
+   ```
+3. `Ctrl/Cmd + Shift + P → Tasks: Run Task` ile hazır görevleri kullan:
+   - **Android: Debug APK derle** (varsayılan build — `Ctrl/Cmd+Shift+B`)
+   - **Android: Cihaza kur** (bağlı cihaz/emülatör gerekir)
+   - **Android: Çalıştır** (kur + uygulamayı başlat)
+   - **Android: Temizle / Testler**
+4. Emülatör başlatmak için (SDK içindeki) `emulator -list-avds` ve `emulator -avd <ad>` kullan;
+   ya da fiziksel cihazda USB hata ayıklamasını aç.
+
+> Not: Tam Android araçları (görsel layout, profiler, AVD yöneticisi) için **Android Studio**
+> daha rahattır; VS Code daha hafif bir editör deneyimi sunar. İkisi de aynı Gradle projesini kullanır.
+
 ## Yol haritası (sonraki modüller)
 
 - Hatırlatma için ses/titreşim profili seçimi

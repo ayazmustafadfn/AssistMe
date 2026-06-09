@@ -37,18 +37,21 @@ import androidx.compose.ui.unit.dp
 private data class HomeModule(
     val title: String,
     val icon: ImageVector,
-    val available: Boolean
+    val onOpen: (() -> Unit)?
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(onOpenReminders: () -> Unit) {
+fun HomeScreen(
+    onOpenReminders: () -> Unit,
+    onOpenNotes: () -> Unit
+) {
     val context = LocalContext.current
     val modules = listOf(
-        HomeModule("Hatırlatmalar", Icons.Filled.Notifications, true),
-        HomeModule("Notlar", Icons.Filled.Description, false),
-        HomeModule("Görevler", Icons.Filled.Checklist, false),
-        HomeModule("Takvim", Icons.Filled.CalendarMonth, false)
+        HomeModule("Hatırlatmalar", Icons.Filled.Notifications, onOpenReminders),
+        HomeModule("Notlar", Icons.Filled.Description, onOpenNotes),
+        HomeModule("Görevler", Icons.Filled.Checklist, null),
+        HomeModule("Takvim", Icons.Filled.CalendarMonth, null)
     )
 
     Scaffold(
@@ -65,7 +68,8 @@ fun HomeScreen(onOpenReminders: () -> Unit) {
                 ModuleCard(
                     module = m,
                     onClick = {
-                        if (m.available) onOpenReminders()
+                        val open = m.onOpen
+                        if (open != null) open()
                         else Toast.makeText(context, "${m.title} yakında eklenecek", Toast.LENGTH_SHORT).show()
                     }
                 )
@@ -76,9 +80,10 @@ fun HomeScreen(onOpenReminders: () -> Unit) {
 
 @Composable
 private fun ModuleCard(module: HomeModule, onClick: () -> Unit) {
-    val container = if (module.available) MaterialTheme.colorScheme.primaryContainer
+    val available = module.onOpen != null
+    val container = if (available) MaterialTheme.colorScheme.primaryContainer
     else MaterialTheme.colorScheme.surfaceVariant
-    val content = if (module.available) MaterialTheme.colorScheme.onPrimaryContainer
+    val content = if (available) MaterialTheme.colorScheme.onPrimaryContainer
     else MaterialTheme.colorScheme.onSurfaceVariant
 
     Card(
@@ -103,7 +108,7 @@ private fun ModuleCard(module: HomeModule, onClick: () -> Unit) {
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(top = 12.dp)
             )
-            if (!module.available) {
+            if (!available) {
                 Text(
                     text = "Yakında",
                     style = MaterialTheme.typography.labelSmall,

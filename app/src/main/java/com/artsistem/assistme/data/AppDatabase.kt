@@ -18,8 +18,8 @@ class Converters {
 }
 
 @Database(
-    entities = [Reminder::class, ReminderGroup::class, ReminderHistory::class],
-    version = 3,
+    entities = [Reminder::class, ReminderGroup::class, ReminderHistory::class, Note::class],
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -28,6 +28,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun reminderDao(): ReminderDao
     abstract fun groupDao(): GroupDao
     abstract fun historyDao(): HistoryDao
+    abstract fun noteDao(): NoteDao
 
     companion object {
         @Volatile
@@ -73,13 +74,29 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v3 -> v4: notlar (notes) tablosu eklenir. */
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `notes` (" +
+                        "`id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, " +
+                        "`title` TEXT NOT NULL, " +
+                        "`body` TEXT NOT NULL, " +
+                        "`colorArgb` INTEGER NOT NULL, " +
+                        "`pinned` INTEGER NOT NULL, " +
+                        "`createdAtMillis` INTEGER NOT NULL, " +
+                        "`updatedAtMillis` INTEGER NOT NULL)"
+                )
+            }
+        }
+
         fun get(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "assistme.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { INSTANCE = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { INSTANCE = it }
             }
         }
     }

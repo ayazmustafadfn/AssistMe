@@ -21,6 +21,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.artsistem.assistme.ui.HistoryScreen
 import com.artsistem.assistme.ui.HomeScreen
+import com.artsistem.assistme.ui.NoteEditScreen
+import com.artsistem.assistme.ui.NotesListScreen
+import com.artsistem.assistme.ui.NotesViewModel
 import com.artsistem.assistme.ui.ReminderEditScreen
 import com.artsistem.assistme.ui.ReminderListScreen
 import com.artsistem.assistme.ui.ReminderViewModel
@@ -51,10 +54,31 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val viewModel: ReminderViewModel =
                     viewModel(factory = ReminderViewModel.Factory)
+                val notesViewModel: NotesViewModel =
+                    viewModel(factory = NotesViewModel.Factory)
 
                 NavHost(navController = navController, startDestination = "home") {
                     composable("home") {
-                        HomeScreen(onOpenReminders = { navController.navigate("list") })
+                        HomeScreen(
+                            onOpenReminders = { navController.navigate("list") },
+                            onOpenNotes = { navController.navigate("notes") }
+                        )
+                    }
+                    composable("notes") {
+                        NotesListScreen(
+                            viewModel = notesViewModel,
+                            onAdd = { navController.navigate("noteEdit/0") },
+                            onEdit = { id -> navController.navigate("noteEdit/$id") },
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+                    composable("noteEdit/{id}") { backStackEntry ->
+                        val id = backStackEntry.arguments?.getString("id")?.toLongOrNull() ?: 0L
+                        NoteEditScreen(
+                            viewModel = notesViewModel,
+                            noteId = id,
+                            onDone = { navController.popBackStack() }
+                        )
                     }
                     composable("list") {
                         ReminderListScreen(

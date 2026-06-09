@@ -6,8 +6,9 @@ import com.artsistem.assistme.data.MailRepository
 import com.artsistem.assistme.data.NotesRepository
 import com.artsistem.assistme.data.ReminderRepository
 import com.artsistem.assistme.data.TasksRepository
-import com.artsistem.assistme.mail.FakeMailSource
 import com.artsistem.assistme.mail.MailSource
+import com.artsistem.assistme.mail.auth.MsalAuth
+import com.artsistem.assistme.mail.graph.GraphMailSource
 import com.artsistem.assistme.reminder.Notifications
 
 /**
@@ -33,8 +34,10 @@ class AssistMeApp : Application() {
         MailRepository(AppDatabase.get(this).mailDao())
     }
 
-    /** Faz 1: sahte kaynak. Azure/Graph hazır olunca GraphMailSource ile değişir. */
-    val mailSource: MailSource by lazy { FakeMailSource() }
+    val msalAuth: MsalAuth by lazy { MsalAuth(this) }
+
+    /** Gerçek Microsoft Graph kaynağı (giriş gerektirir). */
+    val mailSource: MailSource by lazy { GraphMailSource(msalAuth) }
 
     override fun onCreate() {
         super.onCreate()

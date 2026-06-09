@@ -1,5 +1,9 @@
 package com.artsistem.assistme.ui
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,11 +46,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.artsistem.assistme.data.MailMessage
 import com.artsistem.assistme.mail.MailCategory
+
+private fun Context.findActivity(): Activity? {
+    var ctx: Context? = this
+    while (ctx is ContextWrapper) {
+        if (ctx is Activity) return ctx
+        ctx = ctx.baseContext
+    }
+    return null
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,10 +71,20 @@ fun MailScreen(
     val connected by viewModel.connected.collectAsState()
     val messages by viewModel.messages.collectAsState()
     val loading by viewModel.loading.collectAsState()
+    val error by viewModel.error.collectAsState()
+
+    val context = LocalContext.current
+    val activity = remember(context) { context.findActivity() }
 
     // Bağlıyken cache boşsa (ör. süreç yeniden başladı) bir kez tazele.
     LaunchedEffect(connected) {
         if (connected && messages.isEmpty()) viewModel.sync()
+    }
+    LaunchedEffect(error) {
+        error?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            viewModel.clearError()
+        }
     }
 
     var menuOpen by remember { mutableStateOf(false) }
@@ -99,7 +123,7 @@ fun MailScreen(
         if (!connected) {
             ConnectContent(
                 loading = loading,
-                onConnect = { viewModel.connect() },
+                onConnect = { activity?.let { viewModel.connect(it) } },
                 modifier = Modifier.fillMaxSize().padding(padding)
             )
         } else {

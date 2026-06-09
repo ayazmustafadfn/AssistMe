@@ -69,6 +69,9 @@ dependencies {
 
     implementation(libs.androidx.datastore.preferences)
 
+    // MS365 mail (Microsoft Graph) için MSAL kimlik doğrulama
+    implementation(libs.msal)
+
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 
     debugImplementation(libs.androidx.ui.tooling)

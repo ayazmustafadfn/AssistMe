@@ -16,6 +16,12 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // MSAL'in transitive bağımlılıkları (com.microsoft.device.display:display-mask)
+        // için Microsoft Duo SDK feed'i.
+        maven {
+            url = uri("https://pkgs.dev.azure.com/MicrosoftDeviceSDK/DuoSDK-Public/_packaging/Duo-SDK-Feed/maven/v1")
+            content { includeGroup("com.microsoft.device.display") }
+        }
     }
 }
 

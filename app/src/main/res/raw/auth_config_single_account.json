@@ -1,0 +1,15 @@
+{
+  "client_id": "92f89167-d238-488c-a368-4d5154a88bfa",
+  "authorization_user_agent": "DEFAULT",
+  "redirect_uri": "msauth://com.artsistem.assistme/5ouBRa7M8g3KB9WZHSjpVxEN4mQ%3D",
+  "account_mode": "SINGLE",
+  "authorities": [
+    {
+      "type": "AAD",
+      "audience": {
+        "type": "AzureADMyOrg",
+        "tenant_id": "929de741-ac9a-4802-b2e0-422475057664"
+      }
+    }
+  ]
+}

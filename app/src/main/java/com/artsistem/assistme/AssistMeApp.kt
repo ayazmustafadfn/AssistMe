@@ -4,6 +4,7 @@ import android.app.Application
 import com.artsistem.assistme.data.AppDatabase
 import com.artsistem.assistme.data.NotesRepository
 import com.artsistem.assistme.data.ReminderRepository
+import com.artsistem.assistme.data.TasksRepository
 import com.artsistem.assistme.reminder.Notifications
 
 /**
@@ -19,6 +20,10 @@ class AssistMeApp : Application() {
 
     val notesRepository: NotesRepository by lazy {
         NotesRepository(AppDatabase.get(this).noteDao())
+    }
+
+    val tasksRepository: TasksRepository by lazy {
+        TasksRepository(AppDatabase.get(this).taskDao())
     }
 
     override fun onCreate() {

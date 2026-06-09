@@ -44,13 +44,14 @@ private data class HomeModule(
 @Composable
 fun HomeScreen(
     onOpenReminders: () -> Unit,
-    onOpenNotes: () -> Unit
+    onOpenNotes: () -> Unit,
+    onOpenTasks: () -> Unit
 ) {
     val context = LocalContext.current
     val modules = listOf(
         HomeModule("Hatırlatmalar", Icons.Filled.Notifications, onOpenReminders),
         HomeModule("Notlar", Icons.Filled.Description, onOpenNotes),
-        HomeModule("Görevler", Icons.Filled.Checklist, null),
+        HomeModule("Görevler", Icons.Filled.Checklist, onOpenTasks),
         HomeModule("Takvim", Icons.Filled.CalendarMonth, null)
     )
 

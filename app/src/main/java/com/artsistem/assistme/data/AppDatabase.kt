@@ -18,8 +18,8 @@ class Converters {
 }
 
 @Database(
-    entities = [Reminder::class, ReminderGroup::class, ReminderHistory::class, Note::class],
-    version = 4,
+    entities = [Reminder::class, ReminderGroup::class, ReminderHistory::class, Note::class, Task::class],
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -29,6 +29,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun groupDao(): GroupDao
     abstract fun historyDao(): HistoryDao
     abstract fun noteDao(): NoteDao
+    abstract fun taskDao(): TaskDao
 
     companion object {
         @Volatile
@@ -90,13 +91,29 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v4 -> v5: görevler (tasks) tablosu eklenir. */
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `tasks` (" +
+                        "`id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, " +
+                        "`title` TEXT NOT NULL, " +
+                        "`done` INTEGER NOT NULL, " +
+                        "`sortOrder` INTEGER NOT NULL, " +
+                        "`createdAtMillis` INTEGER NOT NULL, " +
+                        "`completedAtMillis` INTEGER)"
+                )
+            }
+        }
+
         fun get(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "assistme.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { INSTANCE = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .build().also { INSTANCE = it }
             }
         }
     }

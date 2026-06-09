@@ -24,6 +24,8 @@ import com.artsistem.assistme.ui.HomeScreen
 import com.artsistem.assistme.ui.NoteEditScreen
 import com.artsistem.assistme.ui.NotesListScreen
 import com.artsistem.assistme.ui.NotesViewModel
+import com.artsistem.assistme.ui.TasksListScreen
+import com.artsistem.assistme.ui.TasksViewModel
 import com.artsistem.assistme.ui.ReminderEditScreen
 import com.artsistem.assistme.ui.ReminderListScreen
 import com.artsistem.assistme.ui.ReminderViewModel
@@ -56,12 +58,21 @@ class MainActivity : ComponentActivity() {
                     viewModel(factory = ReminderViewModel.Factory)
                 val notesViewModel: NotesViewModel =
                     viewModel(factory = NotesViewModel.Factory)
+                val tasksViewModel: TasksViewModel =
+                    viewModel(factory = TasksViewModel.Factory)
 
                 NavHost(navController = navController, startDestination = "home") {
                     composable("home") {
                         HomeScreen(
                             onOpenReminders = { navController.navigate("list") },
-                            onOpenNotes = { navController.navigate("notes") }
+                            onOpenNotes = { navController.navigate("notes") },
+                            onOpenTasks = { navController.navigate("tasks") }
+                        )
+                    }
+                    composable("tasks") {
+                        TasksListScreen(
+                            viewModel = tasksViewModel,
+                            onBack = { navController.popBackStack() }
                         )
                     }
                     composable("notes") {

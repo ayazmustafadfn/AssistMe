@@ -67,6 +67,17 @@ fun ReminderEditScreen(
     var repeatType by remember { mutableStateOf(RepeatType.NONE) }
     var customMinutes by remember { mutableStateOf("30") }
     var groupId by remember { mutableStateOf<Long?>(null) }
+    var flagged by remember { mutableStateOf(false) }
+    var repeatEndMode by remember { mutableStateOf(RepeatEndMode.NONE) }
+    var repeatEndDate by remember {
+        mutableLongStateOf(
+            Calendar.getInstance().apply {
+                add(Calendar.MONTH, 1); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+        )
+    }
+    var repeatCountText by remember { mutableStateOf("5") }
+    var showRepeatEndDatePicker by remember { mutableStateOf(false) }
 
     val groups by viewModel.groups.collectAsState()
     var showNewGroupDialog by remember { mutableStateOf(false) }
@@ -88,6 +99,14 @@ fun ReminderEditScreen(
                 triggerAt = r.triggerAtMillis
                 repeatType = r.repeatType
                 groupId = r.groupId
+                flagged = r.flagged
+                if (r.repeatEndMillis != null) {
+                    repeatEndMode = RepeatEndMode.DATE
+                    repeatEndDate = r.repeatEndMillis!!
+                } else if (r.repeatCount != null) {
+                    repeatEndMode = RepeatEndMode.COUNT
+                    repeatCountText = r.repeatCount.toString()
+                }
                 if (r.repeatType == RepeatType.CUSTOM) {
                     customMinutes = r.customIntervalMinutes.toString()
                 }
@@ -133,6 +152,15 @@ fun ReminderEditScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            androidx.compose.foundation.layout.Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Önemli (⚑)", style = androidx.compose.material3.MaterialTheme.typography.bodyLarge)
+                androidx.compose.material3.Switch(checked = flagged, onCheckedChange = { flagged = it })
+            }
+
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Zaman", style = androidx.compose.material3.MaterialTheme.typography.labelLarge)
@@ -166,6 +194,42 @@ fun ReminderEditScreen(
                 )
             }
 
+            if (repeatType != RepeatType.NONE) {
+                Text("Tekrar bitişi", style = androidx.compose.material3.MaterialTheme.typography.labelLarge)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = repeatEndMode == RepeatEndMode.NONE,
+                        onClick = { repeatEndMode = RepeatEndMode.NONE },
+                        label = { Text("Hiç") }
+                    )
+                    FilterChip(
+                        selected = repeatEndMode == RepeatEndMode.DATE,
+                        onClick = { repeatEndMode = RepeatEndMode.DATE },
+                        label = { Text("Tarihe kadar") }
+                    )
+                    FilterChip(
+                        selected = repeatEndMode == RepeatEndMode.COUNT,
+                        onClick = { repeatEndMode = RepeatEndMode.COUNT },
+                        label = { Text("Adet") }
+                    )
+                }
+                if (repeatEndMode == RepeatEndMode.DATE) {
+                    OutlinedButton(onClick = { showRepeatEndDatePicker = true }) {
+                        Text("Bitiş: ${formatDateTime(repeatEndDate)}")
+                    }
+                }
+                if (repeatEndMode == RepeatEndMode.COUNT) {
+                    OutlinedTextField(
+                        value = repeatCountText,
+                        onValueChange = { v -> repeatCountText = v.filter { it.isDigit() } },
+                        label = { Text("Kaç kez tekrarlasın") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
             Text("Grup", style = androidx.compose.material3.MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
@@ -187,6 +251,7 @@ fun ReminderEditScreen(
             Button(
                 onClick = {
                     val custom = customMinutes.toLongOrNull() ?: 0L
+                    val repeating = repeatType != RepeatType.NONE
                     val reminder = Reminder(
                         id = reminderId,
                         title = title.trim().ifBlank { "Hatırlatma" },
@@ -195,7 +260,11 @@ fun ReminderEditScreen(
                         repeatType = repeatType,
                         customIntervalMinutes = if (repeatType == RepeatType.CUSTOM) custom else 0L,
                         enabled = true,
-                        groupId = groupId
+                        groupId = groupId,
+                        flagged = flagged,
+                        repeatEndMillis = if (repeating && repeatEndMode == RepeatEndMode.DATE) repeatEndDate else null,
+                        repeatCount = if (repeating && repeatEndMode == RepeatEndMode.COUNT)
+                            repeatCountText.toIntOrNull()?.coerceAtLeast(1) else null
                     )
                     viewModel.save(reminder)
                     onDone()
@@ -268,7 +337,36 @@ fun ReminderEditScreen(
             onDismiss = { showNewGroupDialog = false }
         )
     }
+
+    if (showRepeatEndDatePicker) {
+        val dateState = rememberDatePickerState(initialSelectedDateMillis = repeatEndDate)
+        DatePickerDialog(
+            onDismissRequest = { showRepeatEndDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    dateState.selectedDateMillis?.let { picked ->
+                        val d = Calendar.getInstance().apply { timeInMillis = picked }
+                        repeatEndDate = Calendar.getInstance().apply {
+                            set(Calendar.YEAR, d.get(Calendar.YEAR))
+                            set(Calendar.MONTH, d.get(Calendar.MONTH))
+                            set(Calendar.DAY_OF_MONTH, d.get(Calendar.DAY_OF_MONTH))
+                            set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59)
+                            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                        }.timeInMillis
+                    }
+                    showRepeatEndDatePicker = false
+                }) { Text("Tamam") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRepeatEndDatePicker = false }) { Text("İptal") }
+            }
+        ) {
+            DatePicker(state = dateState)
+        }
+    }
 }
+
+private enum class RepeatEndMode { NONE, DATE, COUNT }
 
 private fun repeatChipLabel(type: RepeatType): String = when (type) {
     RepeatType.NONE -> "Yok"

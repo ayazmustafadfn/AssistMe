@@ -55,8 +55,19 @@ class NotificationActionReceiver : BroadcastReceiver() {
             }
 
             ACTION_DONE -> {
-                // Tamamlandı: tekrarlıysa bir sonraki tekrar zaten kuruludur (bu seferi geç).
-                Log.d("NotifAction", "Hatırlatma #$reminderId tamamlandı")
+                // Tamamlandı: geçmişe yaz. (Tekrarlıysa bir sonraki tekrar zaten kuruludur.)
+                val pending = goAsync()
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        val db = AppDatabase.get(appContext)
+                        val repo = ReminderRepository(db.reminderDao(), db.groupDao(), db.historyDao())
+                        repo.getById(reminderId)?.let {
+                            repo.addHistory(it, "done", System.currentTimeMillis())
+                        }
+                    } finally {
+                        pending.finish()
+                    }
+                }
             }
 
             ACTION_DISMISS -> {

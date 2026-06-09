@@ -19,6 +19,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.artsistem.assistme.ui.HistoryScreen
 import com.artsistem.assistme.ui.ReminderEditScreen
 import com.artsistem.assistme.ui.ReminderListScreen
 import com.artsistem.assistme.ui.ReminderViewModel
@@ -55,7 +56,14 @@ class MainActivity : ComponentActivity() {
                         ReminderListScreen(
                             viewModel = viewModel,
                             onAdd = { navController.navigate("edit/0") },
-                            onEdit = { id -> navController.navigate("edit/$id") }
+                            onEdit = { id -> navController.navigate("edit/$id") },
+                            onHistory = { navController.navigate("history") }
+                        )
+                    }
+                    composable("history") {
+                        HistoryScreen(
+                            viewModel = viewModel,
+                            onBack = { navController.popBackStack() }
                         )
                     }
                     composable("edit/{id}") { backStackEntry ->

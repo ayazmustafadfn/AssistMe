@@ -8,7 +8,8 @@ import kotlinx.coroutines.flow.Flow
  */
 class ReminderRepository(
     private val dao: ReminderDao,
-    private val groupDao: GroupDao? = null
+    private val groupDao: GroupDao? = null,
+    private val historyDao: HistoryDao? = null
 ) {
 
     fun observeAll(): Flow<List<Reminder>> = dao.observeAll()
@@ -32,6 +33,32 @@ class ReminderRepository(
         dao.updateTriggerTime(id, triggerAtMillis)
 
     suspend fun setEnabled(id: Long, enabled: Boolean) = dao.setEnabled(id, enabled)
+
+    suspend fun updateRepeatCount(id: Long, count: Int?) = dao.updateRepeatCount(id, count)
+
+    // --- Tamamlananlar geçmişi ---
+
+    fun observeHistory(): Flow<List<ReminderHistory>> =
+        requireHistoryDao().observeAll()
+
+    /** Bir hatırlatmanın tamamlanmasını/tetiklenmesini geçmişe yazar. */
+    suspend fun addHistory(reminder: Reminder, kind: String, atMillis: Long) {
+        requireHistoryDao().insert(
+            ReminderHistory(
+                reminderId = reminder.id,
+                title = reminder.title,
+                note = reminder.note,
+                groupId = reminder.groupId,
+                completedAtMillis = atMillis,
+                kind = kind
+            )
+        )
+    }
+
+    suspend fun clearHistory() = requireHistoryDao().clearAll()
+
+    private fun requireHistoryDao(): HistoryDao =
+        historyDao ?: error("HistoryDao bu repository örneğinde mevcut değil")
 
     // --- Gruplar ---
 

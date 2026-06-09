@@ -24,7 +24,8 @@ class ReminderReceiver : BroadcastReceiver() {
         val appContext = context.applicationContext
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val repo = ReminderRepository(AppDatabase.get(appContext).reminderDao())
+                val db = AppDatabase.get(appContext)
+                val repo = ReminderRepository(db.reminderDao(), db.groupDao(), db.historyDao())
                 val reminder = repo.getById(reminderId)
                 if (reminder == null || !reminder.enabled) return@launch
 
@@ -32,12 +33,26 @@ class ReminderReceiver : BroadcastReceiver() {
 
                 if (reminder.isRepeating) {
                     val next = Recurrence.nextTrigger(reminder)
-                    if (next != null) {
+                    val newRemaining = reminder.repeatCount?.minus(1)
+                    val reachedCount = newRemaining != null && newRemaining <= 0
+                    val end = reminder.repeatEndMillis
+                    val reachedDate = end != null && (next == null || next > end)
+
+                    if (next == null || reachedCount || reachedDate) {
+                        // Tekrar bitti -> pasifleştir.
+                        if (reminder.repeatCount != null) repo.updateRepeatCount(reminder.id, 0)
+                        repo.setEnabled(reminder.id, false)
+                    } else {
+                        if (newRemaining != null) repo.updateRepeatCount(reminder.id, newRemaining)
                         repo.updateTriggerTime(reminder.id, next)
-                        ReminderScheduler.schedule(appContext, reminder.copy(triggerAtMillis = next))
+                        ReminderScheduler.schedule(
+                            appContext,
+                            reminder.copy(triggerAtMillis = next, repeatCount = newRemaining)
+                        )
                     }
                 } else {
-                    // Tek seferlik hatırlatma tetiklendi -> pasifleştir.
+                    // Tek seferlik hatırlatma tetiklendi -> tamamlandı say, geçmişe yaz, pasifleştir.
+                    repo.addHistory(reminder, "fired", System.currentTimeMillis())
                     repo.setEnabled(reminder.id, false)
                 }
             } catch (e: Exception) {

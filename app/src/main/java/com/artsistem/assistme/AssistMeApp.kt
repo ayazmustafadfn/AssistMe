@@ -13,7 +13,7 @@ class AssistMeApp : Application() {
 
     val repository: ReminderRepository by lazy {
         val db = AppDatabase.get(this)
-        ReminderRepository(db.reminderDao(), db.groupDao())
+        ReminderRepository(db.reminderDao(), db.groupDao(), db.historyDao())
     }
 
     override fun onCreate() {

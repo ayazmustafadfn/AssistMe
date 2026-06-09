@@ -17,12 +17,17 @@ class Converters {
     fun fromRepeatType(type: RepeatType): String = type.name
 }
 
-@Database(entities = [Reminder::class, ReminderGroup::class], version = 2, exportSchema = false)
+@Database(
+    entities = [Reminder::class, ReminderGroup::class, ReminderHistory::class],
+    version = 3,
+    exportSchema = false
+)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun reminderDao(): ReminderDao
     abstract fun groupDao(): GroupDao
+    abstract fun historyDao(): HistoryDao
 
     companion object {
         @Volatile
@@ -46,13 +51,35 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v2 -> v3: öncelik bayrağı, tekrar bitiş kontrolü ve tamamlananlar
+         * geçmişi tablosu eklenir. Mevcut hatırlatmalar korunur.
+         */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE reminders ADD COLUMN flagged INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE reminders ADD COLUMN repeatEndMillis INTEGER")
+                db.execSQL("ALTER TABLE reminders ADD COLUMN repeatCount INTEGER")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `reminder_history` (" +
+                        "`id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, " +
+                        "`reminderId` INTEGER NOT NULL, " +
+                        "`title` TEXT NOT NULL, " +
+                        "`note` TEXT NOT NULL, " +
+                        "`groupId` INTEGER, " +
+                        "`completedAtMillis` INTEGER NOT NULL, " +
+                        "`kind` TEXT NOT NULL)"
+                )
+            }
+        }
+
         fun get(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "assistme.db"
-                ).addMigrations(MIGRATION_1_2).build().also { INSTANCE = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { INSTANCE = it }
             }
         }
     }

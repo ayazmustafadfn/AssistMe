@@ -1,5 +1,6 @@
 package com.artsistem.assistme.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -38,6 +39,13 @@ data class Reminder(
     val enabled: Boolean = true,
     /** Ait olduğu grubun id'si; null ise "Grupsuz". */
     val groupId: Long? = null,
+    /** Öncelik bayrağı: önemli olarak işaretli mi. */
+    @ColumnInfo(defaultValue = "0")
+    val flagged: Boolean = false,
+    /** Tekrar bu tarihten sonra dursun (epoch ms); null = sınırsız. */
+    val repeatEndMillis: Long? = null,
+    /** Kalan tekrar sayısı; null = sınırsız. 0'a inince hatırlatma pasifleşir. */
+    val repeatCount: Int? = null,
     val createdAtMillis: Long = System.currentTimeMillis()
 ) {
     /** Bu hatırlatma tekrarlı mı? */

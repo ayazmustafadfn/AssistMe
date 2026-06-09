@@ -19,11 +19,14 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Repeat
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -36,7 +39,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -58,32 +62,81 @@ import com.artsistem.assistme.data.ReminderGroup
 fun ReminderListScreen(
     viewModel: ReminderViewModel,
     onAdd: () -> Unit,
-    onEdit: (Long) -> Unit
+    onEdit: (Long) -> Unit,
+    onHistory: () -> Unit
 ) {
     val reminders by viewModel.reminders.collectAsState()
     val groups by viewModel.groups.collectAsState()
 
-    // null = "Tümü" sekmesi
-    var selectedGroupId by remember { mutableStateOf<Long?>(null) }
+    var selectedGroupId by remember { mutableStateOf<Long?>(null) } // null = "Tümü"
+    var onlyFlagged by remember { mutableStateOf(false) }
+    var searching by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
 
-    // Grup oluştur/düzenle penceresi: dialogGroup null + showDialog -> yeni; doluysa düzenle.
     var showGroupDialog by remember { mutableStateOf(false) }
     var groupBeingEdited by remember { mutableStateOf<ReminderGroup?>(null) }
     var groupToDelete by remember { mutableStateOf<ReminderGroup?>(null) }
 
-    // Seçili grup silinmiş olabilir -> Tümü'ye dön.
     if (selectedGroupId != null && groups.none { it.id == selectedGroupId }) {
         selectedGroupId = null
     }
 
     val groupsById = remember(groups) { groups.associateBy { it.id } }
-    val visibleReminders = remember(reminders, selectedGroupId) {
-        if (selectedGroupId == null) reminders
-        else reminders.filter { it.groupId == selectedGroupId }
+    val visibleReminders = remember(reminders, selectedGroupId, onlyFlagged, searching, query) {
+        val base = when {
+            searching && query.isNotBlank() -> {
+                val q = query.trim().lowercase()
+                reminders.filter {
+                    it.title.lowercase().contains(q) || it.note.lowercase().contains(q)
+                }
+            }
+            onlyFlagged -> reminders.filter { it.flagged }
+            selectedGroupId == null -> reminders
+            else -> reminders.filter { it.groupId == selectedGroupId }
+        }
+        // Önemliler üstte, sonra zamana göre.
+        base.sortedWith(compareByDescending<Reminder> { it.flagged }.thenBy { it.triggerAtMillis })
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Hatırlatmalar") }) },
+        topBar = {
+            TopAppBar(
+                title = {
+                    if (searching) {
+                        TextField(
+                            value = query,
+                            onValueChange = { query = it },
+                            placeholder = { Text("Ara…") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent
+                            )
+                        )
+                    } else {
+                        Text("Hatırlatmalar")
+                    }
+                },
+                navigationIcon = {
+                    if (searching) {
+                        IconButton(onClick = { searching = false; query = "" }) {
+                            Icon(Icons.Default.Close, contentDescription = "Aramayı kapat")
+                        }
+                    }
+                },
+                actions = {
+                    if (!searching) {
+                        IconButton(onClick = { searching = true }) {
+                            Icon(Icons.Default.Search, contentDescription = "Ara")
+                        }
+                        IconButton(onClick = onHistory) {
+                            Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Geçmiş")
+                        }
+                    }
+                }
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = onAdd) {
                 Icon(Icons.Default.Add, contentDescription = "Hatırlatma ekle")
@@ -91,18 +144,24 @@ fun ReminderListScreen(
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            GroupTabsRow(
-                groups = groups,
-                selectedGroupId = selectedGroupId,
-                onSelect = { selectedGroupId = it },
-                onAddGroup = { groupBeingEdited = null; showGroupDialog = true },
-                onEditGroup = { groupBeingEdited = it; showGroupDialog = true },
-                onDeleteGroup = { groupToDelete = it }
-            )
+            if (!searching) {
+                GroupTabsRow(
+                    groups = groups,
+                    selectedGroupId = selectedGroupId,
+                    onlyFlagged = onlyFlagged,
+                    onSelectAll = { selectedGroupId = null; onlyFlagged = false },
+                    onSelectFlagged = { onlyFlagged = true; selectedGroupId = null },
+                    onSelectGroup = { selectedGroupId = it; onlyFlagged = false },
+                    onAddGroup = { groupBeingEdited = null; showGroupDialog = true },
+                    onEditGroup = { groupBeingEdited = it; showGroupDialog = true },
+                    onDeleteGroup = { groupToDelete = it }
+                )
+            }
 
             if (visibleReminders.isEmpty()) {
                 EmptyState(
-                    hasGroupFilter = selectedGroupId != null,
+                    searching = searching && query.isNotBlank(),
+                    filtered = selectedGroupId != null || onlyFlagged,
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
@@ -139,18 +198,18 @@ fun ReminderListScreen(
     }
 
     groupToDelete?.let { group ->
-        AlertDialog(
+        androidx.compose.material3.AlertDialog(
             onDismissRequest = { groupToDelete = null },
             title = { Text("Grubu sil") },
             text = { Text("\"${group.name}\" grubu silinecek. İçindeki hatırlatmalar silinmez, \"Grupsuz\" olur.") },
             confirmButton = {
-                TextButton(onClick = {
+                androidx.compose.material3.TextButton(onClick = {
                     viewModel.deleteGroup(group)
                     groupToDelete = null
                 }) { Text("Sil") }
             },
             dismissButton = {
-                TextButton(onClick = { groupToDelete = null }) { Text("İptal") }
+                androidx.compose.material3.TextButton(onClick = { groupToDelete = null }) { Text("İptal") }
             }
         )
     }
@@ -161,11 +220,15 @@ fun ReminderListScreen(
 private fun GroupTabsRow(
     groups: List<ReminderGroup>,
     selectedGroupId: Long?,
-    onSelect: (Long?) -> Unit,
+    onlyFlagged: Boolean,
+    onSelectAll: () -> Unit,
+    onSelectFlagged: () -> Unit,
+    onSelectGroup: (Long) -> Unit,
     onAddGroup: () -> Unit,
     onEditGroup: (ReminderGroup) -> Unit,
     onDeleteGroup: (ReminderGroup) -> Unit
 ) {
+    val allSelected = selectedGroupId == null && !onlyFlagged
     LazyRow(
         modifier = Modifier.fillMaxWidth(),
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
@@ -173,11 +236,14 @@ private fun GroupTabsRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         item {
+            TabChip(selected = allSelected, colorArgb = null, label = "Tümü", onClick = onSelectAll, onLongClick = null)
+        }
+        item {
             TabChip(
-                selected = selectedGroupId == null,
+                selected = onlyFlagged,
                 colorArgb = null,
-                label = "Tümü",
-                onClick = { onSelect(null) },
+                label = "⚑ Önemli",
+                onClick = onSelectFlagged,
                 onLongClick = null
             )
         }
@@ -188,7 +254,7 @@ private fun GroupTabsRow(
                     selected = selectedGroupId == group.id,
                     colorArgb = group.colorArgb,
                     label = group.name,
-                    onClick = { onSelect(group.id) },
+                    onClick = { onSelectGroup(group.id) },
                     onLongClick = { menuOpen = true }
                 )
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
@@ -204,7 +270,6 @@ private fun GroupTabsRow(
             }
         }
         item {
-            // "+" yeni grup
             Surface(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.secondaryContainer,
@@ -227,11 +292,8 @@ private fun TabChip(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)?
 ) {
-    val bg = if (selected) MaterialTheme.colorScheme.primary
-    else MaterialTheme.colorScheme.surfaceVariant
-    val fg = if (selected) MaterialTheme.colorScheme.onPrimary
-    else MaterialTheme.colorScheme.onSurfaceVariant
-
+    val bg = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+    val fg = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
     Surface(
         shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
         color = bg,
@@ -243,9 +305,7 @@ private fun TabChip(
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             if (colorArgb != null) {
-                Box(
-                    modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(colorArgb))
-                )
+                Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(colorArgb)))
             }
             Text(text = label, color = fg, style = MaterialTheme.typography.labelLarge)
         }
@@ -266,11 +326,21 @@ private fun ReminderCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = reminder.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    textDecoration = if (reminder.enabled) TextDecoration.None else TextDecoration.LineThrough
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (reminder.flagged) {
+                        Icon(
+                            Icons.Default.Flag,
+                            contentDescription = "Önemli",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(18.dp).padding(end = 4.dp)
+                        )
+                    }
+                    Text(
+                        text = reminder.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        textDecoration = if (reminder.enabled) TextDecoration.None else TextDecoration.LineThrough
+                    )
+                }
                 if (reminder.note.isNotBlank()) {
                     Text(
                         text = reminder.note,
@@ -297,10 +367,7 @@ private fun ReminderCard(
                         )
                     }
                     if (group != null) {
-                        Box(
-                            modifier = Modifier.size(10.dp).clip(CircleShape)
-                                .background(Color(group.colorArgb))
-                        )
+                        Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(group.colorArgb)))
                         Text(
                             text = group.name,
                             style = MaterialTheme.typography.bodySmall,
@@ -319,23 +386,17 @@ private fun ReminderCard(
 }
 
 @Composable
-private fun EmptyState(hasGroupFilter: Boolean, modifier: Modifier = Modifier) {
+private fun EmptyState(searching: Boolean, filtered: Boolean, modifier: Modifier = Modifier) {
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                Icons.Default.Notifications,
-                contentDescription = null,
-                modifier = Modifier.padding(8.dp)
-            )
-            if (hasGroupFilter) {
-                Text("Bu grupta hatırlatma yok", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "Eklemek için + düğmesine dokun",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                Text("Henüz hatırlatma yok", style = MaterialTheme.typography.titleMedium)
+            Icon(Icons.Default.Notifications, contentDescription = null, modifier = Modifier.padding(8.dp))
+            val title = when {
+                searching -> "Eşleşen hatırlatma yok"
+                filtered -> "Bu görünümde hatırlatma yok"
+                else -> "Henüz hatırlatma yok"
+            }
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            if (!searching) {
                 Text(
                     "Eklemek için + düğmesine dokun",
                     style = MaterialTheme.typography.bodyMedium,

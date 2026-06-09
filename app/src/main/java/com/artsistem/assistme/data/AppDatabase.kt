@@ -18,8 +18,8 @@ class Converters {
 }
 
 @Database(
-    entities = [Reminder::class, ReminderGroup::class, ReminderHistory::class, Note::class, Task::class],
-    version = 5,
+    entities = [Reminder::class, ReminderGroup::class, ReminderHistory::class, Note::class, Task::class, MailMessage::class],
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -30,6 +30,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun historyDao(): HistoryDao
     abstract fun noteDao(): NoteDao
     abstract fun taskDao(): TaskDao
+    abstract fun mailDao(): MailDao
 
     companion object {
         @Volatile
@@ -106,13 +107,35 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v5 -> v6: mail metaveri tablosu (mail_messages). */
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `mail_messages` (" +
+                        "`id` TEXT NOT NULL PRIMARY KEY, " +
+                        "`conversationId` TEXT NOT NULL, " +
+                        "`subject` TEXT NOT NULL, " +
+                        "`fromName` TEXT NOT NULL, " +
+                        "`fromAddress` TEXT NOT NULL, " +
+                        "`preview` TEXT NOT NULL, " +
+                        "`receivedAtMillis` INTEGER NOT NULL, " +
+                        "`isRead` INTEGER NOT NULL, " +
+                        "`isFlagged` INTEGER NOT NULL, " +
+                        "`fromMe` INTEGER NOT NULL, " +
+                        "`category` TEXT NOT NULL, " +
+                        "`reason` TEXT NOT NULL, " +
+                        "`fetchedAtMillis` INTEGER NOT NULL)"
+                )
+            }
+        }
+
         fun get(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "assistme.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .build().also { INSTANCE = it }
             }
         }

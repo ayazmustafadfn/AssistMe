@@ -32,6 +32,16 @@ object Settings {
         prefs(context).edit().putInt(KEY_LAST_CUSTOM_SNOOZE, minutes.coerceAtLeast(1)).apply()
     }
 
+    // --- Mail asistanı (Faz 1: sahte bağlantı durumu) ---
+    private const val KEY_MAIL_CONNECTED = "mail_connected"
+
+    fun isMailConnected(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_MAIL_CONNECTED, false)
+
+    fun setMailConnected(context: Context, connected: Boolean) {
+        prefs(context).edit().putBoolean(KEY_MAIL_CONNECTED, connected).apply()
+    }
+
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 }

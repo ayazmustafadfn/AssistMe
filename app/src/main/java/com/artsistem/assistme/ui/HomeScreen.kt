@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -51,13 +52,15 @@ private data class HomeModule(
 fun HomeScreen(
     onOpenReminders: () -> Unit,
     onOpenNotes: () -> Unit,
-    onOpenTasks: () -> Unit
+    onOpenTasks: () -> Unit,
+    onOpenMail: () -> Unit
 ) {
     val context = LocalContext.current
     val modules = listOf(
         HomeModule("Hatırlatmalar", Icons.Filled.Notifications, ModuleAccent.PRIMARY, onOpenReminders),
         HomeModule("Notlar", Icons.Filled.Description, ModuleAccent.SECONDARY, onOpenNotes),
         HomeModule("Görevler", Icons.Filled.Checklist, ModuleAccent.TERTIARY, onOpenTasks),
+        HomeModule("Mail", Icons.Filled.Email, ModuleAccent.PRIMARY, onOpenMail),
         HomeModule("Takvim", Icons.Filled.CalendarMonth, ModuleAccent.NEUTRAL, null)
     )
 

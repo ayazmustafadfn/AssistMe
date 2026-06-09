@@ -21,6 +21,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.artsistem.assistme.ui.HistoryScreen
 import com.artsistem.assistme.ui.HomeScreen
+import com.artsistem.assistme.ui.MailScreen
+import com.artsistem.assistme.ui.MailViewModel
 import com.artsistem.assistme.ui.NoteEditScreen
 import com.artsistem.assistme.ui.NotesListScreen
 import com.artsistem.assistme.ui.NotesViewModel
@@ -60,13 +62,22 @@ class MainActivity : ComponentActivity() {
                     viewModel(factory = NotesViewModel.Factory)
                 val tasksViewModel: TasksViewModel =
                     viewModel(factory = TasksViewModel.Factory)
+                val mailViewModel: MailViewModel =
+                    viewModel(factory = MailViewModel.Factory)
 
                 NavHost(navController = navController, startDestination = "home") {
                     composable("home") {
                         HomeScreen(
                             onOpenReminders = { navController.navigate("list") },
                             onOpenNotes = { navController.navigate("notes") },
-                            onOpenTasks = { navController.navigate("tasks") }
+                            onOpenTasks = { navController.navigate("tasks") },
+                            onOpenMail = { navController.navigate("mail") }
+                        )
+                    }
+                    composable("mail") {
+                        MailScreen(
+                            viewModel = mailViewModel,
+                            onBack = { navController.popBackStack() }
                         )
                     }
                     composable("tasks") {

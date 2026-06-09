@@ -20,6 +20,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.artsistem.assistme.ui.HistoryScreen
+import com.artsistem.assistme.ui.HomeScreen
 import com.artsistem.assistme.ui.ReminderEditScreen
 import com.artsistem.assistme.ui.ReminderListScreen
 import com.artsistem.assistme.ui.ReminderViewModel
@@ -51,13 +52,17 @@ class MainActivity : ComponentActivity() {
                 val viewModel: ReminderViewModel =
                     viewModel(factory = ReminderViewModel.Factory)
 
-                NavHost(navController = navController, startDestination = "list") {
+                NavHost(navController = navController, startDestination = "home") {
+                    composable("home") {
+                        HomeScreen(onOpenReminders = { navController.navigate("list") })
+                    }
                     composable("list") {
                         ReminderListScreen(
                             viewModel = viewModel,
                             onAdd = { navController.navigate("edit/0") },
                             onEdit = { id -> navController.navigate("edit/$id") },
-                            onHistory = { navController.navigate("history") }
+                            onHistory = { navController.navigate("history") },
+                            onBack = { navController.popBackStack() }
                         )
                     }
                     composable("history") {

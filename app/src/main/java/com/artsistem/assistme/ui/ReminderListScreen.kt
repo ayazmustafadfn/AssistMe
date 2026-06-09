@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -63,7 +64,8 @@ fun ReminderListScreen(
     viewModel: ReminderViewModel,
     onAdd: () -> Unit,
     onEdit: (Long) -> Unit,
-    onHistory: () -> Unit
+    onHistory: () -> Unit,
+    onBack: () -> Unit
 ) {
     val reminders by viewModel.reminders.collectAsState()
     val groups by viewModel.groups.collectAsState()
@@ -122,6 +124,10 @@ fun ReminderListScreen(
                     if (searching) {
                         IconButton(onClick = { searching = false; query = "" }) {
                             Icon(Icons.Default.Close, contentDescription = "Aramayı kapat")
+                        }
+                    } else {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Ana menü")
                         }
                     }
                 },

@@ -11,3 +11,7 @@ local.properties
 /app/build
 /app/release
 .kotlin/
+# Claude gecici dosyalari (commit mesaji, sql vb.)
+_*.txt
+_*.sql
+*.png

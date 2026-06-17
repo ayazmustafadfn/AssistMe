@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Bir Kelime Bir İşlem",
+    "slug": "bir-kelime-bir-islem",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F4F1FB",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F4F1FB"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ayazmustafadfn.birkelimebirislem"
+    },
+    "android": {
+      "package": "com.ayazmustafadfn.birkelimebirislem",
+      "adaptiveIcon": {
+        "backgroundColor": "#C3B6F2",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}

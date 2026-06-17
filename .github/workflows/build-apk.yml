@@ -1,0 +1,56 @@
+name: Android APK Derle
+
+# Telefona kurulabilir bir APK üretir.
+# Çalıştıktan sonra: Actions > ilgili çalışma > Artifacts > "bir-kelime-bir-islem-apk"
+on:
+  push:
+    branches:
+      - claude/text-based-mobile-game-4zvvwa
+      - main
+  workflow_dispatch: # Actions sekmesinden elle de tetiklenebilir
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kodu çek
+        uses: actions/checkout@v4
+
+      - name: Node kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Java (JDK 17) kur
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Android SDK kur
+        uses: android-actions/setup-android@v3
+
+      - name: Bağımlılıkları yükle
+        run: npm ci
+
+      - name: Native android projesini üret (prebuild)
+        run: npx expo prebuild --platform android --no-install
+
+      - name: APK derle (release)
+        run: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: APK'yı yeniden adlandır
+        run: |
+          mkdir -p dist
+          cp android/app/build/outputs/apk/release/app-release.apk dist/bir-kelime-bir-islem.apk
+
+      - name: APK'yı yükle (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: bir-kelime-bir-islem-apk
+          path: dist/bir-kelime-bir-islem.apk
+          if-no-files-found: error

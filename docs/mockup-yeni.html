@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<title>Yeni Özellikler — Ekran Tasarımı</title>
+<style>
+  :root{
+    --bg:#F4F1FB; --bgAlt:#FBF7FF; --surface:#fff; --surfaceSoft:#F1ECFA;
+    --textDark:#3A3A4D; --textMuted:#8E8AA3; --textSoft:#B7B3C9;
+    --lavender:#C3B6F2; --lavenderDeep:#A78EE6; --blue:#A7C7F2; --mint:#9FE6C9;
+    --peach:#FFC9A8; --pink:#FFB3C6; --yellow:#FFE08A; --success:#5FCf9c;
+    --danger:#FF8FA0; --dangerSoft:#FFE0E5; --tile:#EEE7FB; --tileText:#5A4E86;
+    --shadow:0 10px 24px rgba(122,107,176,.18); --shadowSoft:0 4px 10px rgba(122,107,176,.12);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,"Segoe UI",Roboto,sans-serif;background:linear-gradient(160deg,#EFEAFB,#F7F1FF 60%,#FDEFF4);color:var(--textDark);padding:40px 20px;}
+  h1{text-align:center;font-size:28px;font-weight:900;color:#5A4E86;}
+  p.sub{text-align:center;color:var(--textMuted);margin:8px 0 34px;font-size:15px;}
+  .gallery{display:flex;flex-wrap:wrap;gap:32px;justify-content:center;align-items:flex-start;}
+  .pw{display:flex;flex-direction:column;align-items:center;gap:12px;}
+  .pn{font-weight:800;color:#6b5fa0;font-size:14px;}
+  .phone{width:300px;height:620px;background:var(--bg);border-radius:42px;border:11px solid #2b2740;box-shadow:var(--shadow);overflow:hidden;position:relative;display:flex;flex-direction:column;}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:120px;height:24px;background:#2b2740;border-radius:0 0 16px 16px;z-index:5;}
+  .screen{flex:1;overflow:hidden;padding:32px 18px 18px;}
+  .label{font-size:11px;font-weight:800;color:var(--textSoft);letter-spacing:1.2px;margin:15px 0 9px;}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+  .badge{background:var(--surfaceSoft);color:var(--lavenderDeep);font-size:9.5px;font-weight:800;letter-spacing:1px;padding:6px 10px;border-radius:999px;}
+  .lang{display:flex;background:var(--surfaceSoft);border-radius:999px;padding:4px;}
+  .lang div{padding:5px 11px;border-radius:999px;font-size:12px;font-weight:800;color:var(--textMuted);}
+  .lang div.on{background:var(--lavenderDeep);color:#fff;}
+  .title{font-size:33px;font-weight:900;line-height:1.05;}
+  .title .a{color:var(--lavenderDeep);}
+  .tag{font-size:12.5px;color:var(--textMuted);margin-top:7px;}
+  .seg{display:flex;background:var(--surfaceSoft);border-radius:999px;padding:5px;}
+  .seg div{flex:1;text-align:center;padding:10px;border-radius:999px;font-weight:700;font-size:13.5px;color:var(--textMuted);}
+  .seg div.on{background:#fff;color:var(--lavenderDeep);box-shadow:var(--shadowSoft);}
+  .gcard{display:flex;align-items:center;gap:13px;background:#fff;border-radius:22px;padding:12px;box-shadow:var(--shadow);margin-bottom:11px;}
+  .gi{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:23px;}
+  .gt{font-size:16px;font-weight:800;}
+  .gs{font-size:12px;color:var(--textMuted);margin-top:2px;}
+  .chev{margin-left:auto;color:var(--textSoft);font-size:24px;}
+  .scoresbtn{display:flex;align-items:center;justify-content:space-between;background:var(--surfaceSoft);border-radius:20px;padding:14px 18px;}
+  .scoresbtn b{color:var(--lavenderDeep);font-size:16px;}
+  .hdr{display:flex;align-items:center;margin-bottom:6px;}
+  .back{width:36px;height:36px;border-radius:18px;background:#fff;box-shadow:var(--shadowSoft);display:flex;align-items:center;justify-content:center;color:var(--lavenderDeep);font-size:24px;font-weight:700;}
+  .htitle{flex:1;text-align:center;font-size:18px;font-weight:800;margin-right:36px;}
+  .card{background:#fff;border-radius:22px;padding:18px;box-shadow:var(--shadow);}
+  .ctitle{font-size:18px;font-weight:800;}
+  .chint{font-size:12.5px;color:var(--textMuted);margin-top:5px;line-height:1.45;}
+  .btn{padding:13px;border-radius:999px;text-align:center;font-weight:800;font-size:15px;box-shadow:var(--shadowSoft);margin-top:9px;}
+  .b-blue{background:var(--blue);color:var(--textDark);}.b-peach{background:var(--peach);color:var(--textDark);}
+  .b-mint{background:var(--mint);color:var(--textDark);}.b-lav{background:var(--lavenderDeep);color:#fff;}
+  .b-green{background:var(--success);color:#fff;}.b-soft{background:var(--surfaceSoft);color:var(--lavenderDeep);}
+  .or{display:flex;align-items:center;margin:16px 0;}
+  .or div{flex:1;height:1px;background:var(--surfaceSoft);}.or span{margin:0 12px;color:var(--textSoft);}
+  .input{margin-top:12px;background:var(--surfaceSoft);border-radius:16px;padding:13px;text-align:center;font-size:18px;font-weight:800;letter-spacing:2px;color:var(--textDark);}
+  .res{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;}
+  .res .em{font-size:54px;}
+  .res h2{font-size:25px;font-weight:900;margin:6px 0 14px;}
+  .pill{padding:9px 18px;border-radius:999px;font-weight:900;margin-bottom:14px;}
+  .pill.lav{background:var(--lavender);color:#fff;font-size:17px;}
+  .scard{width:100%;background:#fff;border-radius:22px;padding:18px;box-shadow:var(--shadow);}
+  .srow{display:flex;justify-content:space-between;padding:8px 0;}
+  .srow .k{color:var(--textMuted);font-weight:700;font-size:16px;}.srow .v{font-weight:800;font-size:16px;}
+  .divider{height:1px;background:var(--surfaceSoft);margin:5px 0;}
+  .srow.tot .k{color:var(--textDark);font-weight:900;font-size:18px;}.srow.tot .v{color:var(--lavenderDeep);font-weight:900;font-size:23px;}
+  .codecard{width:100%;background:#fff;border-radius:22px;padding:16px;box-shadow:var(--shadow);margin-top:14px;text-align:center;}
+  .codecard .cl{font-size:11px;font-weight:800;color:var(--textSoft);letter-spacing:1px;}
+  .codecard .cc{font-size:21px;font-weight:900;color:var(--lavenderDeep);letter-spacing:3px;margin:7px 0;}
+  .codecard .ch{font-size:11.5px;color:var(--textMuted);}
+  .brow{display:flex;align-items:center;gap:12px;background:#fff;border-radius:16px;padding:13px;box-shadow:var(--shadowSoft);margin-bottom:9px;}
+  .brow .e{font-size:24px;}.brow .n{font-size:15px;font-weight:800;}.brow .d{font-size:11.5px;color:var(--textMuted);}
+  .brow .sc{margin-left:auto;font-size:20px;font-weight:900;color:var(--lavenderDeep);}
+  .hist{display:flex;align-items:center;gap:11px;background:var(--bgAlt);border-radius:14px;padding:11px;margin-bottom:7px;}
+  .hist .n{font-size:14px;font-weight:700;}.hist .d{font-size:11px;color:var(--textMuted);}
+  .hist .sc{margin-left:auto;font-size:16px;font-weight:800;}
+</style>
+</head>
+<body>
+  <h1>Yeni Özellikler</h1>
+  <p class="sub">Dil (TR/EN) · 5–10 soruluk oturum · skor geçmişi/rekor · kod ile meydan okuma</p>
+  <div class="gallery">
+
+    <!-- HOME -->
+    <div class="pw"><div class="pn">🏠 Ana Menü (güncel)</div>
+    <div class="phone"><div class="notch"></div><div class="screen">
+      <div class="topbar"><div class="badge">KELİME & ZEKÂ OYUNU</div>
+        <div class="lang"><div class="on">TR</div><div>EN</div></div></div>
+      <div class="title">Bir Kelime<br><span class="a">Bir İşlem</span></div>
+      <div class="tag">Harflerle kelime kur, sayılarla hedefi yakala.</div>
+      <div class="label">OYUN MODU</div>
+      <div class="seg"><div class="on">⏱ Yarışma</div><div>🌿 Rahat</div></div>
+      <div class="label">SORU SAYISI</div>
+      <div class="seg"><div class="on">5 soru</div><div>10 soru</div></div>
+      <div class="label">TUR SEÇ</div>
+      <div class="gcard"><div class="gi" style="background:var(--blue)">🔢</div><div><div class="gt">Bir İşlem</div><div class="gs">6 sayı • hedefe ulaş</div></div><div class="chev">›</div></div>
+      <div class="gcard"><div class="gi" style="background:var(--peach)">🔤</div><div><div class="gt">Bir Kelime</div><div class="gs">9 harf • en uzun kelime</div></div><div class="chev">›</div></div>
+      <div class="gcard"><div class="gi" style="background:var(--pink)">👥</div><div><div class="gt">Meydan Oku</div><div class="gs">Kod ile arkadaşına yarış</div></div><div class="chev">›</div></div>
+      <div class="scoresbtn"><b>📊  Skorlar</b><span class="chev">›</span></div>
+    </div></div></div>
+
+    <!-- CHALLENGE -->
+    <div class="pw"><div class="pn">👥 Meydan Oku</div>
+    <div class="phone"><div class="notch"></div><div class="screen">
+      <div class="hdr"><div class="back">‹</div><div class="htitle">Meydan Oku</div></div>
+      <div class="card">
+        <div class="ctitle">📨  Yeni Meydan Oluştur</div>
+        <div class="chint">Bir tur oyna, çıkan kodu arkadaşına gönder.</div>
+        <div class="label">HANGİ TUR?</div>
+        <div class="btn b-blue">🔢  Bir İşlem</div>
+        <div class="btn b-peach">🔤  Bir Kelime</div>
+        <div class="btn b-mint">🏆  Düello</div>
+      </div>
+      <div class="or"><div></div><span>•</span><div></div></div>
+      <div class="card">
+        <div class="ctitle">🎯  Kodla Oyna</div>
+        <div class="chint">Sana gelen kodu gir, aynı soruları oyna.</div>
+        <div class="input">1 N T T 5 …</div>
+        <div class="btn b-lav">Başla</div>
+      </div>
+    </div></div></div>
+
+    <!-- CHALLENGE RESULT (creator, code) -->
+    <div class="pw"><div class="pn">📨 Kodun Hazır</div>
+    <div class="phone"><div class="notch"></div><div class="screen"><div class="res">
+      <div class="em">📨</div><h2>Meydan Oku</h2>
+      <div class="scard">
+        <div class="srow"><span class="k">🔢 Bir İşlem</span><span class="v">5 soru</span></div>
+        <div class="divider"></div>
+        <div class="srow tot"><span class="k">Toplam</span><span class="v">37 <span style="color:var(--textSoft);font-size:15px">/ 50</span></span></div>
+      </div>
+      <div class="codecard">
+        <div class="cl">MEYDAN OKUMA KODUN</div>
+        <div class="cc">1NTT52N9C016V…</div>
+        <div class="ch">Bu kodu arkadaşına gönder; aynı soruları oynasın.</div>
+        <div class="btn b-green" style="margin-top:11px">📤 Paylaş / Gönder</div>
+      </div>
+    </div></div></div></div>
+
+    <!-- CHALLENGE RESULT (comparison) -->
+    <div class="pw"><div class="pn">🎉 Karşılaştırma</div>
+    <div class="phone"><div class="notch"></div><div class="screen"><div class="res">
+      <div class="em">🎉</div><h2>Meydan Oku</h2>
+      <div class="pill lav">🎉 Kazandın!</div>
+      <div class="scard">
+        <div class="srow"><span class="k">🆚 Rakip</span><span class="v">37</span></div>
+        <div class="srow"><span class="k">🙋 Sen</span><span class="v">43</span></div>
+        <div class="divider"></div>
+        <div class="srow tot"><span class="k">Toplam</span><span class="v">43 <span style="color:var(--textSoft);font-size:15px">/ 50</span></span></div>
+      </div>
+      <div class="btn b-lav" style="width:100%;margin-top:18px">Tekrar Oyna</div>
+      <div class="btn b-soft" style="width:100%">Ana Menü</div>
+    </div></div></div></div>
+
+    <!-- SCORES -->
+    <div class="pw"><div class="pn">📊 Skorlar</div>
+    <div class="phone"><div class="notch"></div><div class="screen">
+      <div class="hdr"><div class="back">‹</div><div class="htitle">Skorlar</div></div>
+      <div class="label">EN YÜKSEK SKORLAR</div>
+      <div class="brow"><span class="e">🔢</span><div><div class="n">Bir İşlem</div><div class="d">5 soru · TR</div></div><span class="sc">43<span style="color:var(--textSoft);font-size:13px"> / 50</span></span></div>
+      <div class="brow"><span class="e">🔤</span><div><div class="n">Bir Kelime</div><div class="d">10 soru · EN</div></div><span class="sc">61<span style="color:var(--textSoft);font-size:13px"> / 90</span></span></div>
+      <div class="brow"><span class="e">🏆</span><div><div class="n">Düello</div><div class="d">2 soru · TR</div></div><span class="sc">17<span style="color:var(--textSoft);font-size:13px"> / 19</span></span></div>
+      <div class="label">GEÇMİŞ</div>
+      <div class="hist"><span style="font-size:18px">🔢</span><div><div class="n">Bir İşlem · 5 soru</div><div class="d">17 Haz 21:04 · Yarışma</div></div><span class="sc">43<span style="color:var(--textSoft);font-size:12px">/50</span></span></div>
+      <div class="hist"><span style="font-size:18px">🔤</span><div><div class="n">Bir Kelime · 10 soru</div><div class="d">17 Haz 20:51 · Rahat</div></div><span class="sc">61<span style="color:var(--textSoft);font-size:12px">/90</span></span></div>
+      <div class="hist"><span style="font-size:18px">🏆</span><div><div class="n">Düello · 2 soru</div><div class="d">16 Haz 19:30 · Yarışma</div></div><span class="sc">17<span style="color:var(--textSoft);font-size:12px">/19</span></span></div>
+    </div></div></div>
+
+  </div>
+</body>
+</html>

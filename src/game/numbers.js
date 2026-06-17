@@ -7,31 +7,31 @@
 const LARGE = [25, 50, 75, 100];
 const SMALL = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
-function rand(n) {
-  return Math.floor(Math.random() * n);
+function rand(n, rng = Math.random) {
+  return Math.floor(rng() * n);
 }
 
-function shuffle(arr) {
+function shuffle(arr, rng = Math.random) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
-    const j = rand(i + 1);
+    const j = rand(i + 1, rng);
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
 }
 
 // 6 sayı seç. largeCount: kaç tane "büyük" sayı (0..4)
-export function pickNumbers(largeCount) {
+export function pickNumbers(largeCount, rng = Math.random) {
   if (largeCount == null) {
     // 0..4 büyük; 1-2 ağırlıklı
-    largeCount = [0, 1, 1, 2, 2, 2, 3, 4][rand(8)];
+    largeCount = [0, 1, 1, 2, 2, 2, 3, 4][rand(8, rng)];
   }
   largeCount = Math.max(0, Math.min(4, largeCount));
-  const larges = shuffle(LARGE).slice(0, largeCount);
+  const larges = shuffle(LARGE, rng).slice(0, largeCount);
   const smallPool = [];
   for (const n of SMALL) smallPool.push(n, n); // her küçük sayıdan iki adet
-  const smalls = shuffle(smallPool).slice(0, 6 - largeCount);
-  return shuffle([...larges, ...smalls]);
+  const smalls = shuffle(smallPool, rng).slice(0, 6 - largeCount);
+  return shuffle([...larges, ...smalls], rng);
 }
 
 const OP_SYMBOL = { '+': '+', '-': '−', '*': '×', '/': '÷' };
@@ -54,13 +54,13 @@ export function applyOp(a, b, op) {
 
 // Verilen sayılardan tüm sayıları birleştirerek tek bir hedef üretir
 // ve bu hedefe ulaştıran adımları döndürür (örnek çözüm).
-function buildOnce(nums) {
+function buildOnce(nums, rng = Math.random) {
   let pool = nums.map((v) => ({ v }));
   const steps = [];
   while (pool.length > 1) {
-    const i = rand(pool.length);
-    let j = rand(pool.length);
-    while (j === i) j = rand(pool.length);
+    const i = rand(pool.length, rng);
+    let j = rand(pool.length, rng);
+    while (j === i) j = rand(pool.length, rng);
     const a = pool[i].v;
     const b = pool[j].v;
 
@@ -74,7 +74,7 @@ function buildOnce(nums) {
     if (lo !== 0 && hi % lo === 0 && hi !== lo) candidates.push(['/', hi / lo]);
 
     const valid = candidates.filter(([, r]) => r > 0 && Number.isInteger(r));
-    const [op, res] = valid[rand(valid.length)];
+    const [op, res] = valid[rand(valid.length, rng)];
 
     steps.push(`${hi} ${OP_SYMBOL[op]} ${lo} = ${res}`);
 
@@ -88,17 +88,17 @@ function buildOnce(nums) {
 // Belirli aralıkta, çözülebilir bir soru üretir.
 // minTarget/maxTarget: klasikte 101–999.
 export function generatePuzzle(opts = {}) {
-  const { largeCount, minTarget = 101, maxTarget = 999 } = opts;
+  const { largeCount, minTarget = 101, maxTarget = 999, rng = Math.random } = opts;
   for (let attempt = 0; attempt < 400; attempt++) {
-    const numbers = pickNumbers(largeCount);
-    const { target, steps } = buildOnce(numbers);
+    const numbers = pickNumbers(largeCount, rng);
+    const { target, steps } = buildOnce(numbers, rng);
     if (target >= minTarget && target <= maxTarget) {
       return { numbers, target, solution: steps };
     }
   }
   // Çok nadir: aralığa düşmediyse en yakını kabul et (yine de çözülebilir)
-  const numbers = pickNumbers(largeCount);
-  const { target, steps } = buildOnce(numbers);
+  const numbers = pickNumbers(largeCount, rng);
+  const { target, steps } = buildOnce(numbers, rng);
   return { numbers, target, solution: steps };
 }
 

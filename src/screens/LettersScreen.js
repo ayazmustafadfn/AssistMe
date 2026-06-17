@@ -10,13 +10,13 @@ import { isValidWord, bestWords, upper } from '../game/dictionary';
 const ROUND_SECONDS = 40;
 export const LETTERS_MAX_PER_Q = 9;
 
-export default function LettersScreen({ mode, onBack, series }) {
+export default function LettersScreen({ mode, onBack, series, fixedRack }) {
   const { t, lang } = useLang();
   const timed = mode === 'yarisma';
   const U = (s) => (s ? upper(s, lang) : '');
 
-  const [phase, setPhase] = useState('pick'); // 'pick' | 'play'
-  const [rack, setRack] = useState([]); // [{id, ch, used}]
+  const [phase, setPhase] = useState(fixedRack ? 'play' : 'pick'); // 'pick' | 'play'
+  const [rack, setRack] = useState(() => (fixedRack ? fixedRack.map((ch, i) => ({ id: i, ch, used: false })) : [])); // [{id, ch, used}]
   const [currentPick, setCurrentPick] = useState([]);
   const [picked, setPicked] = useState(0);
   const [word, setWord] = useState([]); // rack id dizisi

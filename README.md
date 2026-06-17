@@ -21,6 +21,11 @@ Ayrıca:
   (oyun türü ve soru sayısı kırılımında rekor takibi).
 - 🌍 **İki dil** — Türkçe ve İngilizce; hem arayüz hem kelime tabanı değişir
   (TR: 33.913 kelime, EN: 202.565 kelime). Ana menüden TR/EN ile değiştir.
+- 👥 **Kod ile meydan okuma (multiplayer, backend yok)** — Bir tur oyna, çıkan
+  16 haneli kodu arkadaşına gönder. O da kodu girip **birebir aynı soruları**
+  oynar; skorlar karşılaştırılır. Sorular bir **seed**'den deterministik
+  üretildiği için sunucuya gerek kalmaz; kodun içinde oyun türü, mod, dil,
+  soru sayısı, seed ve senin skorun saklıdır.
 
 ## ✨ Öne çıkanlar
 
@@ -80,6 +85,7 @@ src/
     numbers.js             # işlem üreteci + çözüm (çözülebilirlik garantisi)
     letters.js             # harf çekimi + dağılım (TR + EN)
     dictionary.js          # dil-duyarlı sözlük + en uzun kelime bulucu
+    challenge.js           # seed'li PRNG, deterministik soru üretimi, kod encode/decode
   data/
     words.json             # 33.913 Türkçe kelime
     words_en.json          # 202.565 İngilizce kelime
@@ -87,8 +93,9 @@ src/
     HomeScreen.js
     NumbersScreen.js
     LettersScreen.js
-    ResultScreen.js        # oturum/düello sonuç ekranı
+    ResultScreen.js        # oturum/düello/meydan okuma sonuç ekranı
     ScoresScreen.js        # skor geçmişi + rekorlar
+    ChallengeScreen.js     # kod oluştur / kodla oyna
 .github/workflows/
   build-apk.yml            # otomatik APK derleme
 ```

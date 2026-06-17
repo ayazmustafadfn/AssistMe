@@ -17,10 +17,10 @@ export function scoreFor(diff) {
   return 0;
 }
 
-export default function NumbersScreen({ mode, onBack, series }) {
+export default function NumbersScreen({ mode, onBack, series, puzzle: propPuzzle }) {
   const { t } = useLang();
   const timed = mode === 'yarisma';
-  const [puzzle] = useState(() => generatePuzzle());
+  const [puzzle] = useState(() => propPuzzle || generatePuzzle());
   const [tiles, setTiles] = useState(() => puzzle.numbers.map((v, i) => ({ id: i, value: v, used: false })));
   const [selA, setSelA] = useState(null);
   const [selOp, setSelOp] = useState(null);

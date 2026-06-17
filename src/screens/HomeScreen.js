@@ -80,6 +80,7 @@ export default function HomeScreen({ mode, setMode, length, setLength, onSelect 
       <GameCard title={t('gNumbersTitle')} subtitle={t('gNumbersSub')} emoji="🔢" color={colors.blue} onPress={() => onSelect('numbers')} />
       <GameCard title={t('gLettersTitle')} subtitle={t('gLettersSub')} emoji="🔤" color={colors.peach} onPress={() => onSelect('letters')} />
       <GameCard title={t('gDuelTitle')} subtitle={t('gDuelSub')} emoji="🏆" color={colors.mint} onPress={() => onSelect('duel')} />
+      <GameCard title={t('challenge')} subtitle={t('challengeSub')} emoji="👥" color={colors.pink} onPress={() => onSelect('challenge')} />
 
       <TouchableOpacity activeOpacity={0.85} onPress={() => onSelect('scores')} style={[styles.scoresBtn, shadowSoft]}>
         <Text style={styles.scoresText}>📊  {t('scores')}</Text>

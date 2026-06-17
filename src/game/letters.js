@@ -28,10 +28,10 @@ const BAGS = {
 
 export const TOTAL_TILES = 9;
 
-function weightedDraw(bag) {
+function weightedDraw(bag, rng) {
   let total = 0;
   for (const [, w] of bag) total += w;
-  let r = Math.random() * total;
+  let r = rng() * total;
   for (const [ch, w] of bag) {
     r -= w;
     if (r <= 0) return ch;
@@ -39,12 +39,12 @@ function weightedDraw(bag) {
   return bag[bag.length - 1][0];
 }
 
-export function drawVowel(lang) {
-  return weightedDraw(BAGS[lang].vowels);
+export function drawVowel(lang, rng = Math.random) {
+  return weightedDraw(BAGS[lang].vowels, rng);
 }
 
-export function drawConsonant(lang) {
-  return weightedDraw(BAGS[lang].consonants);
+export function drawConsonant(lang, rng = Math.random) {
+  return weightedDraw(BAGS[lang].consonants, rng);
 }
 
 export function isVowel(ch, lang) {
@@ -52,13 +52,13 @@ export function isVowel(ch, lang) {
 }
 
 // Dengeli rastgele 9 harf (3-4 sesli)
-export function randomRack(lang) {
-  const vowelCount = 3 + Math.floor(Math.random() * 2);
+export function randomRack(lang, rng = Math.random) {
+  const vowelCount = 3 + Math.floor(rng() * 2);
   const rack = [];
-  for (let i = 0; i < vowelCount; i++) rack.push(drawVowel(lang));
-  for (let i = 0; i < TOTAL_TILES - vowelCount; i++) rack.push(drawConsonant(lang));
+  for (let i = 0; i < vowelCount; i++) rack.push(drawVowel(lang, rng));
+  for (let i = 0; i < TOTAL_TILES - vowelCount; i++) rack.push(drawConsonant(lang, rng));
   for (let i = rack.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rng() * (i + 1));
     [rack[i], rack[j]] = [rack[j], rack[i]];
   }
   return rack;

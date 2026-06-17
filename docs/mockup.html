@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bir Kelime Bir İşlem — Ekran Tasarımı</title>
+<style>
+  :root{
+    --bg:#F4F1FB; --bgAlt:#FBF7FF; --surface:#fff; --surfaceSoft:#F1ECFA;
+    --textDark:#3A3A4D; --textMuted:#8E8AA3; --textSoft:#B7B3C9;
+    --lavender:#C3B6F2; --lavenderDeep:#A78EE6; --blue:#A7C7F2; --mint:#9FE6C9;
+    --peach:#FFC9A8; --pink:#FFB3C6; --yellow:#FFE08A;
+    --success:#5FCf9c; --successSoft:#D7F5E6; --danger:#FF8FA0; --dangerSoft:#FFE0E5;
+    --tile:#EEE7FB; --tileText:#5A4E86;
+    --shadow:0 10px 24px rgba(122,107,176,.18);
+    --shadowSoft:0 4px 10px rgba(122,107,176,.12);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:linear-gradient(160deg,#EFEAFB,#F7F1FF 60%,#FDEFF4);
+    color:var(--textDark); padding:40px 20px; min-height:100vh;
+  }
+  h1.page{text-align:center;font-size:30px;font-weight:900;color:#5A4E86;}
+  p.page{text-align:center;color:var(--textMuted);margin:8px 0 36px;font-size:15px;}
+  .gallery{display:flex;flex-wrap:wrap;gap:34px;justify-content:center;align-items:flex-start;}
+  .phone-wrap{display:flex;flex-direction:column;align-items:center;gap:12px;}
+  .phone-name{font-weight:800;color:#6b5fa0;font-size:14px;letter-spacing:.3px;}
+  .phone{
+    width:300px;height:620px;background:var(--bg);border-radius:42px;
+    border:11px solid #2b2740;box-shadow:var(--shadow);overflow:hidden;position:relative;
+    display:flex;flex-direction:column;
+  }
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:120px;height:24px;background:#2b2740;border-radius:0 0 16px 16px;z-index:5;}
+  .screen{flex:1;overflow-y:auto;padding:34px 18px 18px;}
+  .screen::-webkit-scrollbar{display:none;}
+
+  /* generic */
+  .label{font-size:11px;font-weight:800;color:var(--textSoft);letter-spacing:1.2px;margin:16px 0 9px;}
+  .row{display:flex;gap:10px;}
+  .card{background:var(--surface);border-radius:24px;box-shadow:var(--shadow);}
+
+  /* header */
+  .hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+  .back{width:38px;height:38px;border-radius:19px;background:#fff;box-shadow:var(--shadowSoft);display:flex;align-items:center;justify-content:center;color:var(--lavenderDeep);font-size:26px;font-weight:700;line-height:0;}
+  .hdr-title{flex:1;text-align:center;font-size:18px;font-weight:800;}
+  .spacer{width:38px;}
+
+  /* home */
+  .badge{display:inline-block;background:var(--surfaceSoft);color:var(--lavenderDeep);font-size:10px;font-weight:800;letter-spacing:1px;padding:6px 11px;border-radius:999px;}
+  .title{font-size:34px;font-weight:900;line-height:1.05;margin-top:10px;}
+  .title .accent{color:var(--lavenderDeep);}
+  .tagline{font-size:13px;color:var(--textMuted);margin-top:8px;line-height:1.5;}
+  .toggle{display:flex;background:var(--surfaceSoft);border-radius:999px;padding:5px;}
+  .toggle div{flex:1;text-align:center;padding:11px;border-radius:999px;font-weight:700;font-size:14px;color:var(--textMuted);}
+  .toggle div.active{background:#fff;color:var(--lavenderDeep);box-shadow:var(--shadowSoft);}
+  .gcard{display:flex;align-items:center;gap:14px;background:#fff;border-radius:24px;padding:14px;box-shadow:var(--shadow);margin-bottom:13px;}
+  .gicon{width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:25px;}
+  .gtitle{font-size:17px;font-weight:800;}
+  .gsub{font-size:12.5px;color:var(--textMuted);margin-top:2px;}
+  .chev{margin-left:auto;color:var(--textSoft);font-size:26px;}
+  .foot{text-align:center;color:var(--textMuted);font-size:12px;margin-top:14px;line-height:1.5;}
+  .foot small{color:var(--textSoft);display:block;margin-top:7px;}
+
+  /* numbers */
+  .target{flex:1;background:var(--lavenderDeep);border-radius:24px;padding:15px 16px;box-shadow:var(--shadow);}
+  .target .l{color:#EDE7FF;font-size:11px;font-weight:800;letter-spacing:1.4px;}
+  .target .v{color:#fff;font-size:42px;font-weight:900;line-height:1.1;}
+  .timer{width:86px;background:#fff;border-radius:24px;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:var(--shadow);}
+  .timer .v{font-size:30px;font-weight:900;}
+  .timer .l{font-size:10px;color:var(--textMuted);font-weight:600;}
+  .tiles{display:flex;flex-wrap:wrap;gap:9px;}
+  .ntile{width:58px;height:58px;border-radius:16px;background:var(--tile);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:var(--tileText);box-shadow:var(--shadowSoft);}
+  .ntile.used{background:var(--surfaceSoft);opacity:.45;color:var(--textSoft);}
+  .ntile.sel{background:var(--lavenderDeep);color:#fff;}
+  .ops{display:flex;gap:9px;}
+  .op{flex:1;height:52px;border-radius:16px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:25px;font-weight:800;box-shadow:var(--shadowSoft);}
+  .op.active{background:var(--blue);color:#fff;}
+  .preview{text-align:center;font-size:24px;font-weight:800;color:var(--textMuted);letter-spacing:2px;margin:13px 0;}
+  .btn{padding:14px;border-radius:999px;text-align:center;font-weight:800;font-size:16px;box-shadow:var(--shadowSoft);margin-top:10px;}
+  .btn.primary{background:var(--lavenderDeep);color:#fff;}
+  .btn.blue{background:var(--blue);color:var(--textDark);}
+  .btn.green{background:var(--success);color:#fff;}
+  .btn.peach{background:var(--peach);color:var(--textDark);}
+  .btn.soft{background:var(--surfaceSoft);color:var(--textMuted);}
+  .half{display:flex;gap:10px;}
+  .half .btn{flex:1;margin-top:0;}
+  .sol{background:var(--bgAlt);border-radius:24px;padding:18px;margin-top:14px;box-shadow:var(--shadow);}
+  .sol h4{font-size:15px;margin-bottom:9px;}
+  .sol .step{color:var(--textMuted);font-weight:600;font-size:15px;margin-bottom:5px;}
+  .sol .note{color:var(--lavenderDeep);font-weight:700;margin-top:6px;font-size:14px;}
+
+  /* letters */
+  .timerbar{align-self:center;display:inline-block;background:#fff;padding:8px 18px;border-radius:999px;font-weight:800;box-shadow:var(--shadowSoft);}
+  .wordarea{min-height:60px;background:#fff;border-radius:18px;padding:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;box-shadow:var(--shadowSoft);}
+  .wtile{width:42px;height:42px;border-radius:12px;background:var(--lavenderDeep);color:#fff;display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:800;}
+  .banner{border-radius:16px;padding:13px;text-align:center;font-weight:800;font-size:14px;margin-top:12px;}
+  .banner.ok{background:var(--successSoft);color:#2E8B6B;}
+  .rack{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;}
+  .ltile{width:52px;height:58px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;color:var(--tileText);box-shadow:var(--shadowSoft);}
+  .ltile.vowel{background:var(--peach);}
+  .ltile.cons{background:var(--tile);}
+  .ltile.used{opacity:.35;}
+  .solwords{font-size:19px;font-weight:800;color:var(--lavenderDeep);}
+
+  /* result */
+  .res{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;padding:8px;}
+  .res .emoji{font-size:60px;}
+  .res h2{font-size:27px;font-weight:900;margin:6px 0 22px;}
+  .scard{width:100%;background:#fff;border-radius:24px;padding:20px;box-shadow:var(--shadow);}
+  .srow{display:flex;justify-content:space-between;align-items:center;padding:9px 0;}
+  .srow .k{color:var(--textMuted);font-weight:700;font-size:17px;}
+  .srow .vv{font-weight:800;font-size:17px;}
+  .divider{height:1px;background:var(--surfaceSoft);margin:6px 0;}
+  .srow.total .k{color:var(--textDark);font-weight:900;font-size:19px;}
+  .srow.total .vv{color:var(--lavenderDeep);font-weight:900;font-size:24px;}
+  .slot{width:30px;height:38px;border-radius:9px;background:var(--surfaceSoft);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:#fff;}
+  .slot.f{background:var(--lavender);}
+</style>
+</head>
+<body>
+  <h1 class="page">Bir Kelime Bir İşlem</h1>
+  <p class="page">Modern pastel tasarım · gerçek uygulama ekranlarının birebir önizlemesi</p>
+
+  <div class="gallery">
+
+    <!-- HOME -->
+    <div class="phone-wrap">
+      <div class="phone-name">🏠 Ana Menü</div>
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <span class="badge">TÜRKÇE KELİME &amp; ZEKÂ OYUNU</span>
+        <div class="title">Bir Kelime<br><span class="accent">Bir İşlem</span></div>
+        <div class="tagline">Harflerle kelime kur, sayılarla hedefi yakala.</div>
+        <div class="label">OYUN MODU</div>
+        <div class="toggle"><div class="active">⏱ Yarışma</div><div>🌿 Rahat</div></div>
+        <div class="label">TUR SEÇ</div>
+        <div class="gcard"><div class="gicon" style="background:var(--blue)">🔢</div><div><div class="gtitle">Bir İşlem</div><div class="gsub">6 sayı • hedefe ulaş</div></div><div class="chev">›</div></div>
+        <div class="gcard"><div class="gicon" style="background:var(--peach)">🔤</div><div><div class="gtitle">Bir Kelime</div><div class="gsub">9 harf • en uzun kelime</div></div><div class="chev">›</div></div>
+        <div class="gcard"><div class="gicon" style="background:var(--mint)">🏆</div><div><div class="gtitle">Düello</div><div class="gsub">Önce kelime, sonra işlem</div></div><div class="chev">›</div></div>
+        <div class="foot">Yarışma modu: her tur süreli, doğru cevaba puan.<small>33.913 kelimelik Türkçe sözlük</small></div>
+      </div></div>
+    </div>
+
+    <!-- NUMBERS -->
+    <div class="phone-wrap">
+      <div class="phone-name">🔢 Bir İşlem</div>
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <div class="hdr"><div class="back">‹</div><div class="hdr-title">Bir İşlem</div><div class="spacer"></div></div>
+        <div class="row" style="margin-top:6px">
+          <div class="target"><div class="l">HEDEF</div><div class="v">425</div></div>
+          <div class="timer"><div class="v">38</div><div class="l">saniye</div></div>
+        </div>
+        <div class="label">SAYILAR</div>
+        <div class="tiles">
+          <div class="ntile used">75</div><div class="ntile sel">100</div><div class="ntile">4</div>
+          <div class="ntile used">8</div><div class="ntile">3</div><div class="ntile">9</div>
+          <div class="ntile">425</div>
+        </div>
+        <div class="label">İŞLEM</div>
+        <div class="ops"><div class="op">+</div><div class="op">−</div><div class="op active">×</div><div class="op">÷</div></div>
+        <div class="preview">100 × ?</div>
+        <div class="half"><div class="btn peach">↶ Geri Al</div><div class="btn soft">Sıfırla</div></div>
+        <div class="btn blue">Çözümü Göster</div>
+        <div class="sol">
+          <h4>Örnek Çözüm</h4>
+          <div class="step">1.  100 − 9 = 91</div>
+          <div class="step">2.  91 − 8 = 83</div>
+          <div class="step">3.  83 × 4 = 332</div>
+          <div class="step">4.  75 + 3 = 78... </div>
+          <div class="note">Hedef: 425</div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- LETTERS -->
+    <div class="phone-wrap">
+      <div class="phone-name">🔤 Bir Kelime</div>
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <div class="hdr"><div class="back">‹</div><div class="hdr-title">Bir Kelime</div><div class="spacer"></div></div>
+        <div style="text-align:center;margin-top:6px"><span class="timerbar">⏱ 27 sn</span></div>
+        <div class="label">KELİMEN</div>
+        <div class="wordarea">
+          <div class="wtile">K</div><div class="wtile">A</div><div class="wtile">L</div>
+          <div class="wtile">E</div><div class="wtile">M</div><div class="wtile">T</div><div class="wtile">İ</div>
+        </div>
+        <div class="banner ok">✓ "KALEMTİ"... · "KALEM" geçerli · +5 puan</div>
+        <div class="label">HARFLER</div>
+        <div class="rack">
+          <div class="ltile cons used">K</div><div class="ltile vowel used">A</div><div class="ltile cons used">L</div>
+          <div class="ltile vowel used">E</div><div class="ltile cons used">M</div><div class="ltile cons">T</div>
+          <div class="ltile vowel">İ</div><div class="ltile cons">R</div><div class="ltile cons">N</div>
+        </div>
+        <div class="half" style="margin-top:16px"><div class="btn soft">🔀 Karıştır</div><div class="btn soft">Temizle</div></div>
+        <div class="btn green">Onayla</div>
+        <div class="sol">
+          <h4>En uzun kelime (9 harf)</h4>
+          <div class="solwords">NAMERTLİK</div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- LETTERS PICK -->
+    <div class="phone-wrap">
+      <div class="phone-name">🔤 Harf Seçimi</div>
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <div class="hdr"><div class="back">‹</div><div class="hdr-title">Bir Kelime</div><div class="spacer"></div></div>
+        <div class="title" style="font-size:25px;margin-top:8px">9 harf seç</div>
+        <div class="tagline">Sesli mi sessiz mi? Karışımı sana kalmış — sonra en uzun kelimeyi kur.</div>
+        <div style="display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:22px">
+          <div class="slot f">K</div><div class="slot f">A</div><div class="slot f">R</div>
+          <div class="slot f">E</div><div class="slot f">T</div><div class="slot"></div>
+          <div class="slot"></div><div class="slot"></div><div class="slot"></div>
+        </div>
+        <div style="text-align:center;color:var(--textMuted);font-weight:700;margin:20px 0">5/9</div>
+        <div class="half"><div class="btn peach">🅰 Sesli</div><div class="btn blue">🅱 Sessiz</div></div>
+        <div class="btn soft" style="color:var(--lavenderDeep)">🎲 Karışık (otomatik)</div>
+      </div></div>
+    </div>
+
+    <!-- DUEL RESULT -->
+    <div class="phone-wrap">
+      <div class="phone-name">🏆 Düello Sonucu</div>
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <div class="res">
+          <div class="emoji">🏆</div>
+          <h2>Düello Bitti!</h2>
+          <div class="scard">
+            <div class="srow"><span class="k">🔤 Kelime</span><span class="vv">7 puan</span></div>
+            <div class="srow"><span class="k">🔢 İşlem</span><span class="vv">10 puan</span></div>
+            <div class="divider"></div>
+            <div class="srow total"><span class="k">Toplam</span><span class="vv">17</span></div>
+          </div>
+          <div class="btn primary" style="width:100%;margin-top:22px">Tekrar Oyna</div>
+          <div class="btn soft" style="width:100%;color:var(--lavenderDeep)">Ana Menü</div>
+        </div>
+      </div></div>
+    </div>
+
+  </div>
+</body>
+</html>

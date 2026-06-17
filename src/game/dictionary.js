@@ -1,18 +1,28 @@
-// Türkçe sözlük yardımcıları (TDK tabanlı, temizlenmiş liste)
-import WORDS from '../data/words.json';
+// Dil-duyarlı sözlük yardımcıları (TR + EN)
+import TR from '../data/words.json';
+import EN from '../data/words_en.json';
 
-const WORD_SET = new Set(WORDS);
+const LISTS = { tr: TR, en: EN };
+const SETS = {}; // dil başına Set tembel kurulur
 
-export function trLower(s) {
-  return s.toLocaleLowerCase('tr');
+function getSet(lang) {
+  if (!SETS[lang]) SETS[lang] = new Set(LISTS[lang]);
+  return SETS[lang];
 }
 
-export function isValidWord(w) {
+export function lower(s, lang) {
+  return lang === 'tr' ? s.toLocaleLowerCase('tr') : s.toLowerCase();
+}
+
+export function upper(s, lang) {
+  return lang === 'tr' ? s.toLocaleUpperCase('tr') : s.toUpperCase();
+}
+
+export function isValidWord(w, lang) {
   if (!w) return false;
-  return WORD_SET.has(trLower(w.trim()));
+  return getSet(lang).has(lower(w.trim(), lang));
 }
 
-// Harf çoklu-kümesinden (rack) bir kelime kurulabilir mi?
 function canBuild(word, rackCount) {
   const need = {};
   for (const ch of word) {
@@ -23,18 +33,18 @@ function canBuild(word, rackCount) {
 }
 
 // Verilen harflerden kurulabilecek en uzun kelimeleri bulur.
-// rack: harf dizisi (örn. ['a','r','k',...])
-export function bestWords(rack, limit = 5) {
+export function bestWords(rack, lang, limit = 5) {
+  const list = LISTS[lang];
   const rackCount = {};
   for (const ch of rack) {
-    const c = trLower(ch);
+    const c = lower(ch, lang);
     rackCount[c] = (rackCount[c] || 0) + 1;
   }
   const rackLen = rack.length;
   let found = [];
   let bestLen = 0;
-  for (let i = 0; i < WORDS.length; i++) {
-    const w = WORDS[i];
+  for (let i = 0; i < list.length; i++) {
+    const w = list[i];
     if (w.length < bestLen) continue;
     if (w.length > rackLen) continue;
     if (canBuild(w, rackCount)) {
@@ -46,9 +56,7 @@ export function bestWords(rack, limit = 5) {
       }
     }
   }
-  // Aynı uzunlukta birden çok varsa rastgele birkaçını döndür
   if (found.length > limit) {
-    // basit karıştır
     for (let i = found.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [found[i], found[j]] = [found[j], found[i]];
@@ -58,4 +66,6 @@ export function bestWords(rack, limit = 5) {
   return { words: found, length: bestLen };
 }
 
-export const WORD_COUNT = WORDS.length;
+export function wordCount(lang) {
+  return LISTS[lang].length;
+}

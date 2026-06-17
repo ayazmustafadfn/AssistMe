@@ -14,6 +14,14 @@ React Native (Expo) ile yazıldı, modern **pastel** bir tasarımı var.
 - ⏱ **Yarışma** — Her tur süreli, doğru cevaba puan.
 - 🌿 **Rahat** — Süre yok, dilediğin kadar düşün.
 
+Ayrıca:
+
+- 🔢 **Oturum uzunluğu** — 5 veya 10 soruluk seri; sonunda toplam skor.
+- 📊 **Skor geçmişi + en yüksek skor** — sonuçlar telefonda kalıcı saklanır
+  (oyun türü ve soru sayısı kırılımında rekor takibi).
+- 🌍 **İki dil** — Türkçe ve İngilizce; hem arayüz hem kelime tabanı değişir
+  (TR: 33.913 kelime, EN: 202.565 kelime). Ana menüden TR/EN ile değiştir.
+
 ## ✨ Öne çıkanlar
 
 - **Her işlem sorusu kesinlikle çözülebilir.** Hedef, verilen sayılardan
@@ -66,16 +74,21 @@ src/
   components/
     ui.js                  # Button, Header, Card
     useCountdown.js        # geri sayım kancası
+  i18n.js                  # TR/EN çeviriler + dil context'i
+  storage.js               # skor geçmişi + rekor (AsyncStorage)
   game/
     numbers.js             # işlem üreteci + çözüm (çözülebilirlik garantisi)
-    letters.js             # harf çekimi + dağılım
-    dictionary.js          # sözlük doğrulama + en uzun kelime bulucu
+    letters.js             # harf çekimi + dağılım (TR + EN)
+    dictionary.js          # dil-duyarlı sözlük + en uzun kelime bulucu
   data/
     words.json             # 33.913 Türkçe kelime
+    words_en.json          # 202.565 İngilizce kelime
   screens/
     HomeScreen.js
     NumbersScreen.js
     LettersScreen.js
+    ResultScreen.js        # oturum/düello sonuç ekranı
+    ScoresScreen.js        # skor geçmişi + rekorlar
 .github/workflows/
   build-apk.yml            # otomatik APK derleme
 ```

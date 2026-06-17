@@ -1,23 +1,26 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Text, View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { colors, radius, shadow, shadowSoft } from '../theme';
 import { Header, Button, Card } from '../components/ui';
 import { useCountdown } from '../components/useCountdown';
+import { useLang } from '../i18n';
 import { generatePuzzle, applyOp, OP_SYMBOL } from '../game/numbers';
 
 const ROUND_SECONDS = 45;
 const OPS = ['+', '-', '*', '/'];
+export const NUMBERS_MAX_PER_Q = 10;
 
-function scoreFor(diff) {
+export function scoreFor(diff) {
   if (diff === 0) return 10;
   if (diff <= 5) return 7;
   if (diff <= 10) return 5;
   return 0;
 }
 
-export default function NumbersScreen({ mode, onBack, onComplete, duel }) {
+export default function NumbersScreen({ mode, onBack, series }) {
+  const { t } = useLang();
   const timed = mode === 'yarisma';
-  const [puzzle, setPuzzle] = useState(() => generatePuzzle());
+  const [puzzle] = useState(() => generatePuzzle());
   const [tiles, setTiles] = useState(() => puzzle.numbers.map((v, i) => ({ id: i, value: v, used: false })));
   const [selA, setSelA] = useState(null);
   const [selOp, setSelOp] = useState(null);
@@ -25,50 +28,33 @@ export default function NumbersScreen({ mode, onBack, onComplete, duel }) {
   const [finished, setFinished] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const [toast, setToast] = useState(null);
-  const nextId = useMemo(() => ({ v: 6 }), [puzzle]);
+  const nextId = useMemo(() => ({ v: 6 }), []);
 
   const bestDiff = useMemo(() => {
     let d = Infinity;
-    for (const t of tiles) d = Math.min(d, Math.abs(t.value - puzzle.target));
+    for (const t2 of tiles) d = Math.min(d, Math.abs(t2.value - puzzle.target));
     return d;
   }, [tiles, puzzle.target]);
 
   const solved = bestDiff === 0;
 
-  const { remaining, reset } = useCountdown(ROUND_SECONDS, timed && !finished && !solved, () => endRound());
+  const { remaining } = useCountdown(ROUND_SECONDS, timed && !finished && !solved, () => endRound());
 
   function flash(msg) {
     setToast(msg);
     setTimeout(() => setToast(null), 1300);
   }
 
-  const newPuzzle = useCallback(() => {
-    const p = generatePuzzle();
-    setPuzzle(p);
-    setTiles(p.numbers.map((v, i) => ({ id: i, value: v, used: false })));
-    nextId.v = 6;
-    setSelA(null);
-    setSelOp(null);
-    setHistory([]);
-    setFinished(false);
-    setRevealed(false);
-    reset(ROUND_SECONDS);
-  }, [nextId, reset]);
-
   function endRound() {
     setFinished(true);
     setRevealed(true);
   }
 
-  function handleFinishPress() {
-    if (duel) {
-      onComplete && onComplete(scoreFor(bestDiff));
-    } else {
-      newPuzzle();
-    }
+  function complete() {
+    series && series.onComplete(scoreFor(bestDiff));
   }
 
-  const tileById = (id) => tiles.find((t) => t.id === id);
+  const tileById = (id) => tiles.find((tt) => tt.id === id);
 
   function onTileTap(tile) {
     if (finished || tile.used) return;
@@ -82,31 +68,23 @@ export default function NumbersScreen({ mode, onBack, onComplete, duel }) {
       return;
     }
     if (selOp === null) {
-      // operand A'yı değiştir
       setSelA(tile.id);
       return;
     }
-    // ikinci operand: işlemi uygula
     const a = tileById(selA).value;
     const b = tile.value;
     const res = applyOp(a, b, selOp);
     if (res === null) {
-      flash(selOp === '/' ? 'Tam bölünmüyor' : 'Sonuç negatif olamaz');
+      flash(selOp === '/' ? t('notDivisible') : t('mustBePositive'));
       return;
     }
     const newTile = { id: nextId.v++, value: res, used: false };
     setHistory((h) => [...h, { aId: selA, bId: tile.id, newId: newTile.id }]);
     setTiles((prev) =>
-      prev
-        .map((t) => (t.id === selA || t.id === tile.id ? { ...t, used: true } : t))
-        .concat(newTile)
+      prev.map((tt) => (tt.id === selA || tt.id === tile.id ? { ...tt, used: true } : tt)).concat(newTile)
     );
     setSelA(null);
     setSelOp(null);
-    if (res === puzzle.target) {
-      // çözüldü
-      if (timed) flash('🎉 Hedefe ulaştın!');
-    }
   }
 
   function undo() {
@@ -115,8 +93,8 @@ export default function NumbersScreen({ mode, onBack, onComplete, duel }) {
     setHistory((h) => h.slice(0, -1));
     setTiles((prev) =>
       prev
-        .filter((t) => t.id !== last.newId)
-        .map((t) => (t.id === last.aId || t.id === last.bId ? { ...t, used: false } : t))
+        .filter((tt) => tt.id !== last.newId)
+        .map((tt) => (tt.id === last.aId || tt.id === last.bId ? { ...tt, used: false } : tt))
     );
     setSelA(null);
     setSelOp(null);
@@ -132,58 +110,60 @@ export default function NumbersScreen({ mode, onBack, onComplete, duel }) {
   }
 
   const previewA = selA !== null ? tileById(selA)?.value : null;
+  const title = series?.label || t('gNumbersTitle');
 
   return (
     <View style={styles.root}>
-      <Header title={duel ? `Düello • İşlem (${duel.step}/${duel.total})` : 'Bir İşlem'} onBack={onBack} />
+      <Header title={title} onBack={onBack} />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {series && (
+          <Text style={styles.counter}>
+            {t('question')} {series.step}/{series.total}
+          </Text>
+        )}
+
         <View style={styles.topRow}>
           <View style={styles.targetBox}>
-            <Text style={styles.targetLabel}>HEDEF</Text>
+            <Text style={styles.targetLabel}>{t('target')}</Text>
             <Text style={styles.targetValue}>{puzzle.target}</Text>
           </View>
           {timed && (
             <View style={[styles.timerBox, remaining <= 10 && styles.timerDanger]}>
               <Text style={[styles.timerValue, remaining <= 10 && styles.timerValueDanger]}>{remaining}</Text>
-              <Text style={styles.timerLabel}>saniye</Text>
+              <Text style={styles.timerLabel}>{t('seconds')}</Text>
             </View>
           )}
         </View>
 
         {solved && (
           <View style={[styles.banner, { backgroundColor: colors.successSoft }]}>
-            <Text style={[styles.bannerText, { color: '#2E8B6B' }]}>✓ Hedefe ulaştın! +{scoreFor(0)} puan</Text>
+            <Text style={[styles.bannerText, { color: '#2E8B6B' }]}>{t('reached', { n: 10 })}</Text>
           </View>
         )}
 
-        <Text style={styles.sectionLabel}>SAYILAR</Text>
+        <Text style={styles.sectionLabel}>{t('numbers')}</Text>
         <View style={styles.tileGrid}>
-          {tiles.map((t) => {
-            const isSel = t.id === selA;
-            const isTarget = t.value === puzzle.target && !t.used;
+          {tiles.map((tt) => {
+            const isSel = tt.id === selA;
+            const isTarget = tt.value === puzzle.target && !tt.used;
             return (
               <TouchableOpacity
-                key={t.id}
+                key={tt.id}
                 activeOpacity={0.8}
-                disabled={t.used || finished}
-                onPress={() => onTileTap(t)}
-                style={[
-                  styles.tile,
-                  t.used && styles.tileUsed,
-                  isSel && styles.tileSelected,
-                  isTarget && styles.tileTarget,
-                ]}
+                disabled={tt.used || finished}
+                onPress={() => onTileTap(tt)}
+                style={[styles.tile, tt.used && styles.tileUsed, isSel && styles.tileSelected, isTarget && styles.tileTarget]}
               >
-                <Text style={[styles.tileText, t.used && styles.tileTextUsed, isSel && styles.tileTextSelected]}>
-                  {t.value}
+                <Text style={[styles.tileText, tt.used && styles.tileTextUsed, isSel && styles.tileTextSelected]}>
+                  {tt.value}
                 </Text>
               </TouchableOpacity>
             );
           })}
         </View>
 
-        <Text style={styles.sectionLabel}>İŞLEM</Text>
+        <Text style={styles.sectionLabel}>{t('operation')}</Text>
         <View style={styles.opRow}>
           {OPS.map((op) => (
             <TouchableOpacity
@@ -211,37 +191,31 @@ export default function NumbersScreen({ mode, onBack, onComplete, duel }) {
         )}
 
         <View style={styles.actionRow}>
-          <Button title="↶ Geri Al" small color={colors.peach} textColor={colors.textDark} onPress={undo} style={styles.flexBtn} disabled={finished || history.length === 0} />
-          <Button title="Sıfırla" small color={colors.surfaceSoft} textColor={colors.textMuted} onPress={resetMoves} style={styles.flexBtn} disabled={finished} />
+          <Button title={t('undo')} small color={colors.peach} textColor={colors.textDark} onPress={undo} style={styles.flexBtn} disabled={finished || history.length === 0} />
+          <Button title={t('reset')} small color={colors.surfaceSoft} textColor={colors.textMuted} onPress={resetMoves} style={styles.flexBtn} disabled={finished} />
         </View>
 
         {!finished && !solved && (
-          <Button
-            title={duel ? 'Turu Bitir →' : 'Çözümü Göster'}
-            color={colors.blue}
-            textColor={colors.textDark}
-            onPress={endRound}
-            style={{ marginTop: 4 }}
-          />
+          <Button title={series ? t('endRound') : t('showSolution')} color={colors.blue} textColor={colors.textDark} onPress={endRound} style={{ marginTop: 4 }} />
         )}
 
         {revealed && (
           <Card style={{ marginTop: 16, backgroundColor: colors.bgAlt }}>
-            <Text style={styles.solTitle}>Örnek Çözüm</Text>
+            <Text style={styles.solTitle}>{t('exampleSolution')}</Text>
             {puzzle.solution.map((s, i) => (
               <Text key={i} style={styles.solStep}>
                 {i + 1}.  {s}
               </Text>
             ))}
-            <Text style={styles.solNote}>Hedef: {puzzle.target}</Text>
+            <Text style={styles.solNote}>{t('targetIs', { n: puzzle.target })}</Text>
           </Card>
         )}
 
-        {(finished || solved) && (
+        {(finished || solved) && series && (
           <Button
-            title={duel ? 'Sonuçlara Geç →' : 'Yeni Soru'}
+            title={series.step >= series.total ? t('seeResults') : t('next')}
             color={colors.lavenderDeep}
-            onPress={handleFinishPress}
+            onPress={complete}
             style={{ marginTop: 16 }}
           />
         )}
@@ -253,6 +227,7 @@ export default function NumbersScreen({ mode, onBack, onComplete, duel }) {
 const styles = StyleSheet.create({
   root: { flex: 1, paddingHorizontal: 18, paddingTop: 6 },
   scroll: { paddingBottom: 40 },
+  counter: { fontSize: 14, fontWeight: '800', color: colors.lavenderDeep, marginBottom: 10 },
   topRow: { flexDirection: 'row', gap: 12, marginBottom: 8 },
   targetBox: { flex: 1, backgroundColor: colors.lavenderDeep, borderRadius: radius.lg, padding: 16, ...shadow },
   targetLabel: { color: '#EDE7FF', fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
@@ -266,10 +241,7 @@ const styles = StyleSheet.create({
   bannerText: { fontSize: 16, fontWeight: '800' },
   sectionLabel: { fontSize: 12, fontWeight: '800', color: colors.textSoft, letterSpacing: 1.2, marginTop: 18, marginBottom: 10 },
   tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  tile: {
-    width: 64, height: 64, borderRadius: radius.md, backgroundColor: colors.tile,
-    alignItems: 'center', justifyContent: 'center', ...shadowSoft,
-  },
+  tile: { width: 64, height: 64, borderRadius: radius.md, backgroundColor: colors.tile, alignItems: 'center', justifyContent: 'center', ...shadowSoft },
   tileUsed: { backgroundColor: colors.surfaceSoft, opacity: 0.45 },
   tileSelected: { backgroundColor: colors.lavenderDeep },
   tileTarget: { borderWidth: 2, borderColor: colors.mint },

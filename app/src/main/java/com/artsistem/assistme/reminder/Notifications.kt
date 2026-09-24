@@ -27,8 +27,17 @@ object Notifications {
     /** Eski (normal) hatırlatma kanalı — geriye dönük uyumluluk için tutulur. */
     const val CHANNEL_ID = "reminders"
 
-    /** Alarm seviyesindeki bildirimler için kanal (alarm sesi + yüksek önem). */
-    const val CHANNEL_ALARM_ID = "alarms"
+    /**
+     * Alarm seviyesindeki bildirimler için kanal (alarm sesi + yüksek önem).
+     * Kanal sesi sonradan değişmediği için melodi her değiştiğinde sürümlü yeni
+     * kanal açılır: "alarms", "alarms_1", "alarms_2"…
+     */
+    private const val CHANNEL_ALARM_BASE = "alarms"
+
+    private fun alarmChannelId(context: Context): String {
+        val v = Settings.getAlarmChannelVersion(context)
+        return if (v == 0) CHANNEL_ALARM_BASE else "${CHANNEL_ALARM_BASE}_$v"
+    }
 
     private const val GROUP_KEY = "com.artsistem.assistme.REMINDERS"
 
@@ -49,15 +58,19 @@ object Notifications {
             manager.createNotificationChannel(channel)
         }
 
-        if (manager.getNotificationChannel(CHANNEL_ALARM_ID) == null) {
-            val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        val alarmChannelId = alarmChannelId(context)
+        if (manager.getNotificationChannel(alarmChannelId) == null) {
+            // Eski sürüm alarm kanallarını temizle (ayarlarda tek kanal görünsün).
+            manager.notificationChannels
+                .filter { it.id.startsWith(CHANNEL_ALARM_BASE) && it.id != alarmChannelId }
+                .forEach { manager.deleteNotificationChannel(it.id) }
+            val alarmUri = Settings.getAlarmSoundUri(context)
             val attrs = AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_ALARM)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                 .build()
             val channel = NotificationChannel(
-                CHANNEL_ALARM_ID,
+                alarmChannelId,
                 context.getString(R.string.channel_alarms_name),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
@@ -116,7 +129,7 @@ object Notifications {
 
         // Heads-up bildirimde ~3 aksiyon gösterilir: Tamamlandı · 15 dk · 1 saat.
         // (Yukarı kaydırınca kapanır = Kapat; dokununca tam ekran alarm açılır.)
-        val builder = NotificationCompat.Builder(context, CHANNEL_ALARM_ID)
+        val builder = NotificationCompat.Builder(context, alarmChannelId(context))
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(reminder.title)
             .setContentText(reminder.note.ifBlank { context.getString(R.string.notification_default_body) })

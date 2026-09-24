@@ -38,6 +38,11 @@ class BootReceiver : BroadcastReceiver() {
                         ReminderScheduler.schedule(appContext, reminder.copy(triggerAtMillis = target))
                     }
                 }
+                // Bekleyen ertelemeleri de yeniden kur; kapalıyken süresi dolduysa hemen çal.
+                for (reminder in repo.getAllSnoozed()) {
+                    val until = reminder.snoozedUntilMillis ?: continue
+                    ReminderScheduler.scheduleSnooze(appContext, reminder.id, maxOf(until, now + 5_000L))
+                }
                 Log.d("BootReceiver", "${reminders.size} hatırlatma yeniden kuruldu")
             } catch (e: Exception) {
                 Log.e("BootReceiver", "Alarmlar yeniden kurulamadı", e)

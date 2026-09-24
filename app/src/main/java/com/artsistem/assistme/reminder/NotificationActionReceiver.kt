@@ -13,9 +13,9 @@ import kotlinx.coroutines.launch
 /**
  * Bildirim üzerindeki "Ertele" ve "Tamam" aksiyonlarını işler.
  *
- * - Ertele: bildirimi kapatır, alarmı [snoozeMinutes] dakika sonraya kurar.
- *   (Tekrarlı hatırlatmanın asıl tekrar zamanı korunur; erteleme tek seferlik
- *   ek bir alarmdır ve aynı reminder id'si üzerinden yeniden kurulur.)
+ * - Ertele: bildirimi kapatır, [snoozeMinutes] dakika sonraya AYRI bir erteleme
+ *   alarmı kurar ve zamanı `snoozedUntilMillis`'e yazar. Tekrarlı hatırlatmanın
+ *   asıl tekrar alarmı korunur.
  * - Tamam: bildirimi kapatır, ek işlem yapmaz.
  */
 class NotificationActionReceiver : BroadcastReceiver() {
@@ -43,10 +43,11 @@ class NotificationActionReceiver : BroadcastReceiver() {
                         val repo = ReminderRepository(AppDatabase.get(appContext).reminderDao())
                         val reminder = repo.getById(reminderId) ?: return@launch
                         val snoozeAt = System.currentTimeMillis() + minutes * 60_000L
-                        ReminderScheduler.schedule(
-                            appContext,
-                            reminder.copy(triggerAtMillis = snoozeAt, enabled = true)
-                        )
+                        // Ertelemeyi DB'ye yaz (listede görünsün, yeniden başlatmada kurulsun).
+                        // Tek seferlik hatırlatma tetiklenince pasifleşmişti; erteleme sürdükçe aktif.
+                        repo.setSnoozedUntil(reminder.id, snoozeAt)
+                        if (!reminder.isRepeating) repo.setEnabled(reminder.id, true)
+                        ReminderScheduler.scheduleSnooze(appContext, reminder.id, snoozeAt)
                         Log.d("NotifAction", "Hatırlatma #$reminderId $minutes dk ertelendi")
                     } finally {
                         pending.finish()

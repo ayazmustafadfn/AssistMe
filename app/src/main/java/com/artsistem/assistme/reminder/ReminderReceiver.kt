@@ -12,7 +12,8 @@ import kotlinx.coroutines.launch
 
 /**
  * Alarm tetiklendiğinde çalışır: bildirimi gösterir ve hatırlatma tekrarlıysa
- * bir sonraki tetiklenmeyi kurar.
+ * bir sonraki tetiklenmeyi kurar. [ReminderScheduler.ACTION_SNOOZE_FIRE] ile
+ * gelen ertelenmiş alarm yalnızca bildirimi yeniden gösterir.
  */
 class ReminderReceiver : BroadcastReceiver() {
 
@@ -26,8 +27,24 @@ class ReminderReceiver : BroadcastReceiver() {
             try {
                 val db = AppDatabase.get(appContext)
                 val repo = ReminderRepository(db.reminderDao(), db.groupDao(), db.historyDao())
-                val reminder = repo.getById(reminderId)
-                if (reminder == null || !reminder.enabled) return@launch
+                val reminder = repo.getById(reminderId) ?: return@launch
+
+                if (intent.action == ReminderScheduler.ACTION_SNOOZE_FIRE) {
+                    // Ertelenen alarm: yalnızca yeniden çal. Tekrar zamanı / sayaç değişmez.
+                    // Kullanıcı erteledikten sonra kapattıysa (erteleme temizlenmişse) çalma.
+                    if (reminder.snoozedUntilMillis == null) return@launch
+                    repo.setSnoozedUntil(reminder.id, null)
+                    Notifications.show(appContext, reminder)
+                    if (!reminder.isRepeating) repo.setEnabled(reminder.id, false)
+                    return@launch
+                }
+
+                if (!reminder.enabled) return@launch
+                // Yeni asıl tetiklenme, bekleyen ertelemeyi geçersiz kılar.
+                if (reminder.snoozedUntilMillis != null) {
+                    repo.setSnoozedUntil(reminder.id, null)
+                    ReminderScheduler.cancelSnooze(appContext, reminder.id)
+                }
 
                 Notifications.show(appContext, reminder)
 

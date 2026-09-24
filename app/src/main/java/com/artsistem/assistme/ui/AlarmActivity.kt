@@ -3,10 +3,15 @@ package com.artsistem.assistme.ui
 import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -25,6 +30,7 @@ import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -60,10 +66,17 @@ import com.artsistem.assistme.ui.theme.AssistMeTheme
  * alarm sesini döngülü çalar. Butonlar: Tamamlandı / 15 dk / 1 saat /
  * (son özel süre) / Diğer… / Kapat.
  */
-class AlarmActivity : ComponentActivity() {
+class AlarmActivity : ComponentActivity(), SensorEventListener {
 
     private val autoDismiss = Handler(Looper.getMainLooper())
     private var reminderId: Long = -1L
+
+    private val muted = mutableStateOf(false)
+    private var sensorManager: SensorManager? = null
+    /** Alçak geçirgen filtreyle süzülmüş yerçekimi vektörü (titreşim gürültüsünü eler). */
+    private val gravity = FloatArray(3)
+    private var baseline: FloatArray? = null
+    private var sensorStartedAt = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -78,6 +91,7 @@ class AlarmActivity : ComponentActivity() {
 
         AlarmPlayer.start(this)
         autoDismiss.postDelayed({ finishAlarm() }, AUTO_DISMISS_MS)
+        if (Settings.isPickupMuteEnabled(this)) startPickupDetection()
 
         setContent {
             AssistMeTheme {
@@ -85,6 +99,7 @@ class AlarmActivity : ComponentActivity() {
                     title = title,
                     note = note,
                     lastCustomMinutes = lastCustom,
+                    muted = muted.value,
                     onSnooze = { minutes -> snooze(minutes) },
                     onDone = { done() },
                     onDismiss = { dismiss() }
@@ -96,6 +111,56 @@ class AlarmActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+    }
+
+    // --- Ele alınca sessize al ---
+
+    private fun startPickupDetection() {
+        val sm = getSystemService(Context.SENSOR_SERVICE) as? SensorManager ?: return
+        val accel = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) ?: return
+        sensorManager = sm
+        sensorStartedAt = System.currentTimeMillis()
+        sm.registerListener(this, accel, SensorManager.SENSOR_DELAY_UI)
+    }
+
+    private fun stopPickupDetection() {
+        sensorManager?.unregisterListener(this)
+        sensorManager = null
+    }
+
+    override fun onSensorChanged(event: SensorEvent) {
+        for (i in 0..2) gravity[i] = LOW_PASS * gravity[i] + (1 - LOW_PASS) * event.values[i]
+        // Filtre otursun diye ilk saniyeyi bekle, sonra duruşu referans al.
+        if (System.currentTimeMillis() - sensorStartedAt < SETTLE_MS) return
+        val base = baseline ?: gravity.copyOf().also { baseline = it; return }
+        if (angleBetween(base, gravity) > PICKUP_ANGLE_DEG) muteAlarm()
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+
+    private fun angleBetween(a: FloatArray, b: FloatArray): Double {
+        val dot = a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+        val na = Math.sqrt((a[0] * a[0] + a[1] * a[1] + a[2] * a[2]).toDouble())
+        val nb = Math.sqrt((b[0] * b[0] + b[1] * b[1] + b[2] * b[2]).toDouble())
+        if (na < 1e-3 || nb < 1e-3) return 0.0
+        return Math.toDegrees(Math.acos((dot / (na * nb)).coerceIn(-1.0, 1.0)))
+    }
+
+    /** Sesi/titreşimi keser; ekran açık kalır, karar kullanıcıda. */
+    private fun muteAlarm() {
+        if (muted.value) return
+        muted.value = true
+        AlarmPlayer.mute()
+        stopPickupDetection()
+    }
+
+    /** Ses tuşlarına basmak da alarmı sessize alır (yaygın alarm davranışı). */
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+            muteAlarm()
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
     }
 
     private fun showOverLockScreen() {
@@ -150,6 +215,7 @@ class AlarmActivity : ComponentActivity() {
 
     private fun finishAlarm() {
         autoDismiss.removeCallbacksAndMessages(null)
+        stopPickupDetection()
         AlarmPlayer.stop()
         if (reminderId != -1L) Notifications.cancel(this, reminderId)
         finish()
@@ -157,6 +223,7 @@ class AlarmActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        stopPickupDetection()
         AlarmPlayer.stop()
     }
 
@@ -168,6 +235,11 @@ class AlarmActivity : ComponentActivity() {
 
         /** Kimse dokunmazsa 2 dakika sonra otomatik sustur. */
         private const val AUTO_DISMISS_MS = 2 * 60 * 1000L
+
+        /** Duruş bu açıdan fazla değişirse "ele alındı" say. */
+        private const val PICKUP_ANGLE_DEG = 25.0
+        private const val SETTLE_MS = 1000L
+        private const val LOW_PASS = 0.8f
     }
 }
 
@@ -184,6 +256,7 @@ private fun AlarmScreen(
     title: String,
     note: String,
     lastCustomMinutes: Int,
+    muted: Boolean,
     onSnooze: (Int) -> Unit,
     onDone: () -> Unit,
     onDismiss: () -> Unit
@@ -224,6 +297,24 @@ private fun AlarmScreen(
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(top = 12.dp)
                 )
+            }
+            if (muted) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 16.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.VolumeOff,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        "  Sessize alındı",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
             }
 
             // Tamamlandı (vurgulu)

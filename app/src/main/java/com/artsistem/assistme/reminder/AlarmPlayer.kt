@@ -60,14 +60,38 @@ object AlarmPlayer {
 
     fun isPlaying(): Boolean = mediaPlayer != null
 
-    private fun startSound(context: Context) {
-        // Önce alarm zil sesi; yoksa bildirim/zil sesine düş.
-        val uri: Uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-            ?: return
-
+    /**
+     * Sesi ve titreşimi keser ama alarmı KAPATMAZ: ekran açık kalır, kullanıcı
+     * yine Tamamlandı / Ertele seçer. Tekrar [start] çağrısı sesi başlatmaz.
+     */
+    @Synchronized
+    fun mute() {
         try {
+            mediaPlayer?.setVolume(0f, 0f)
+        } catch (e: Exception) {
+            Log.w(TAG, "Ses kısılamadı", e)
+        }
+        try {
+            vibrator?.cancel()
+        } catch (e: Exception) {
+            Log.w(TAG, "Titreşim durdurulamadı", e)
+        }
+    }
+
+    private fun startSound(context: Context) {
+        // Kullanıcının seçtiği melodi; yoksa sistem alarm sesi (Settings içinde).
+        val uri = Settings.getAlarmSoundUri(context) ?: return
+        if (startSoundFrom(context, uri)) return
+        // Seçili melodi silinmiş/erişilemiyorsa sistem alarm sesine düş.
+        val fallback = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+        if (fallback != null && fallback != uri) {
+            Log.w(TAG, "Seçili melodi açılamadı, varsayılana dönülüyor")
+            startSoundFrom(context, fallback)
+        }
+    }
+
+    private fun startSoundFrom(context: Context, uri: Uri): Boolean {
+        return try {
             mediaPlayer = MediaPlayer().apply {
                 setDataSource(context, uri)
                 setAudioAttributes(
@@ -80,9 +104,12 @@ object AlarmPlayer {
                 setOnPreparedListener { it.start() }
                 prepareAsync()
             }
+            true
         } catch (e: Exception) {
-            Log.e(TAG, "Alarm sesi başlatılamadı", e)
+            Log.e(TAG, "Alarm sesi başlatılamadı: $uri", e)
+            runCatching { mediaPlayer?.release() }
             mediaPlayer = null
+            false
         }
     }
 

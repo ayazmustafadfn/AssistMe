@@ -35,6 +35,12 @@ interface ReminderDao {
     @Query("UPDATE reminders SET enabled = :enabled WHERE id = :id")
     suspend fun setEnabled(id: Long, enabled: Boolean)
 
+    @Query("UPDATE reminders SET snoozedUntilMillis = :until WHERE id = :id")
+    suspend fun setSnoozedUntil(id: Long, until: Long?)
+
+    @Query("SELECT * FROM reminders WHERE snoozedUntilMillis IS NOT NULL")
+    suspend fun getAllSnoozed(): List<Reminder>
+
     @Query("UPDATE reminders SET repeatCount = :count WHERE id = :id")
     suspend fun updateRepeatCount(id: Long, count: Int?)
 }

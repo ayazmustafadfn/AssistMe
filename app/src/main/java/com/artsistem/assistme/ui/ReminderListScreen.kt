@@ -359,6 +359,13 @@ private fun ReminderCard(
                     text = formatDateTime(reminder.triggerAtMillis),
                     style = MaterialTheme.typography.bodySmall
                 )
+                reminder.snoozedUntilMillis?.let { until ->
+                    Text(
+                        text = "Ertelendi → ${formatDateTime(until)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (reminder.isRepeating) {
                         Icon(

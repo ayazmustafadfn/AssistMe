@@ -31,6 +31,7 @@ import com.artsistem.assistme.ui.TasksViewModel
 import com.artsistem.assistme.ui.ReminderEditScreen
 import com.artsistem.assistme.ui.ReminderListScreen
 import com.artsistem.assistme.ui.ReminderViewModel
+import com.artsistem.assistme.ui.SettingsScreen
 import com.artsistem.assistme.ui.theme.AssistMeTheme
 
 class MainActivity : ComponentActivity() {
@@ -68,11 +69,19 @@ class MainActivity : ComponentActivity() {
                 NavHost(navController = navController, startDestination = "home") {
                     composable("home") {
                         HomeScreen(
+                            reminderViewModel = viewModel,
+                            notesViewModel = notesViewModel,
+                            tasksViewModel = tasksViewModel,
+                            mailViewModel = mailViewModel,
                             onOpenReminders = { navController.navigate("list") },
                             onOpenNotes = { navController.navigate("notes") },
                             onOpenTasks = { navController.navigate("tasks") },
-                            onOpenMail = { navController.navigate("mail") }
+                            onOpenMail = { navController.navigate("mail") },
+                            onOpenSettings = { navController.navigate("settings") }
                         )
+                    }
+                    composable("settings") {
+                        SettingsScreen(onBack = { navController.popBackStack() })
                     }
                     composable("mail") {
                         MailScreen(

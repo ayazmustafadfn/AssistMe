@@ -19,7 +19,7 @@ class Converters {
 
 @Database(
     entities = [Reminder::class, ReminderGroup::class, ReminderHistory::class, Note::class, Task::class, MailMessage::class],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -129,13 +129,20 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** v6 -> v7: erteleme zamanı (reminders.snoozedUntilMillis). */
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `reminders` ADD COLUMN `snoozedUntilMillis` INTEGER")
+            }
+        }
+
         fun get(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "assistme.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                     .build().also { INSTANCE = it }
             }
         }

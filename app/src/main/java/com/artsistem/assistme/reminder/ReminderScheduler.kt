@@ -18,13 +18,28 @@ object ReminderScheduler {
 
     private const val TAG = "ReminderScheduler"
     const val EXTRA_REMINDER_ID = "extra_reminder_id"
+    const val ACTION_SNOOZE_FIRE = "com.artsistem.assistme.SNOOZE_FIRE"
 
     fun schedule(context: Context, reminder: Reminder) {
         if (!reminder.enabled) return
-        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        setAlarm(context, reminder.id, reminder.triggerAtMillis, alarmPendingIntent(context, reminder.id))
+    }
 
-        val pendingIntent = alarmPendingIntent(context, reminder.id)
-        val triggerAt = reminder.triggerAtMillis
+    /**
+     * Ertelenen alarmı kurar. Asıl (tekrar) alarmından AYRI bir PendingIntent
+     * kullanır; böylece tekrarlı hatırlatmanın bir sonraki tekrarı ezilmez.
+     */
+    fun scheduleSnooze(context: Context, reminderId: Long, triggerAt: Long) {
+        setAlarm(context, reminderId, triggerAt, snoozePendingIntent(context, reminderId))
+    }
+
+    fun cancelSnooze(context: Context, reminderId: Long) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        alarmManager.cancel(snoozePendingIntent(context, reminderId))
+    }
+
+    private fun setAlarm(context: Context, reminderId: Long, triggerAt: Long, pendingIntent: PendingIntent) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
         // Android 12+ tam alarm izni yoksa yaklaşık alarma düş.
         val canExact = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -45,7 +60,7 @@ object ReminderScheduler {
                     pendingIntent
                 )
             }
-            Log.d(TAG, "Hatırlatma #${reminder.id} kuruldu: $triggerAt (exact=$canExact)")
+            Log.d(TAG, "Hatırlatma #$reminderId kuruldu: $triggerAt (exact=$canExact)")
         } catch (e: SecurityException) {
             Log.e(TAG, "Alarm kurulamadı (izin yok)", e)
         }
@@ -54,7 +69,22 @@ object ReminderScheduler {
     fun cancel(context: Context, reminderId: Long) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         alarmManager.cancel(alarmPendingIntent(context, reminderId))
+        alarmManager.cancel(snoozePendingIntent(context, reminderId))
         Log.d(TAG, "Hatırlatma #$reminderId iptal edildi")
+    }
+
+    private fun snoozePendingIntent(context: Context, reminderId: Long): PendingIntent {
+        // Farklı action = asıl alarmdan ayrı PendingIntent (aynı requestCode olsa da).
+        val intent = Intent(context, ReminderReceiver::class.java).apply {
+            action = ACTION_SNOOZE_FIRE
+            putExtra(EXTRA_REMINDER_ID, reminderId)
+        }
+        return PendingIntent.getBroadcast(
+            context,
+            reminderId.toInt(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
     }
 
     private fun alarmPendingIntent(context: Context, reminderId: Long): PendingIntent {

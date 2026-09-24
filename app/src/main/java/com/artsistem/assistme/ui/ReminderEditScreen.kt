@@ -21,10 +21,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -116,7 +114,8 @@ fun ReminderEditScreen(
     }
 
     var showDatePicker by remember { mutableStateOf(false) }
-    var showTimePicker by remember { mutableStateOf(false) }
+    // Kayıttaki 5'in katı olmayan dakika çarkta kaybolmasın.
+    var extraMinute by remember { mutableStateOf<Int?>(null) }
 
     Scaffold(
         topBar = {
@@ -165,10 +164,19 @@ fun ReminderEditScreen(
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Zaman", style = androidx.compose.material3.MaterialTheme.typography.labelLarge)
                     Text(formatDateTime(triggerAt), style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
-                    androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { showDatePicker = true }) { Text("Tarih") }
-                        OutlinedButton(onClick = { showTimePicker = true }) { Text("Saat") }
+                    OutlinedButton(onClick = { showDatePicker = true }) { Text("Tarih") }
+                    // Saat: form içinde kaydırmalı çark (pencere açılmaz).
+                    val timeCal = Calendar.getInstance().apply { timeInMillis = triggerAt }
+                    val curMinute = timeCal.get(Calendar.MINUTE)
+                    LaunchedEffect(curMinute) {
+                        if (curMinute % 5 != 0 && extraMinute == null) extraMinute = curMinute
                     }
+                    TimeWheel(
+                        hour = timeCal.get(Calendar.HOUR_OF_DAY),
+                        minute = curMinute,
+                        extraMinute = extraMinute,
+                        onChange = { h, m -> triggerAt = combineTime(triggerAt, h, m) }
+                    )
                 }
             }
 
@@ -294,35 +302,6 @@ fun ReminderEditScreen(
             }
         ) {
             DatePicker(state = dateState)
-        }
-    }
-
-    if (showTimePicker) {
-        val cal = Calendar.getInstance().apply { timeInMillis = triggerAt }
-        val timeState = rememberTimePickerState(
-            initialHour = cal.get(Calendar.HOUR_OF_DAY),
-            initialMinute = cal.get(Calendar.MINUTE),
-            is24Hour = true
-        )
-        Dialog(onDismissRequest = { showTimePicker = false }) {
-            Card {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    TimePicker(state = timeState)
-                    androidx.compose.foundation.layout.Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        TextButton(onClick = { showTimePicker = false }) { Text("İptal") }
-                        TextButton(onClick = {
-                            triggerAt = combineTime(triggerAt, timeState.hour, timeState.minute)
-                            showTimePicker = false
-                        }) { Text("Tamam") }
-                    }
-                }
-            }
         }
     }
 

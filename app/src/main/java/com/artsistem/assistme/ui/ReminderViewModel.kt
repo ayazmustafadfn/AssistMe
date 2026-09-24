@@ -55,8 +55,9 @@ class ReminderViewModel(
 
     fun save(reminder: Reminder) {
         viewModelScope.launch {
-            val id = repository.upsert(reminder)
-            val saved = reminder.copy(id = id)
+            // Düzenlenen hatırlatmanın bekleyen ertelemesi geçersiz olur.
+            val id = repository.upsert(reminder.copy(snoozedUntilMillis = null))
+            val saved = reminder.copy(id = id, snoozedUntilMillis = null)
             val context = getApplication<Application>()
             // Önce eski alarmı iptal et, sonra (aktifse) yenisini kur.
             ReminderScheduler.cancel(context, saved.id)
@@ -70,6 +71,7 @@ class ReminderViewModel(
         viewModelScope.launch {
             repository.setEnabled(reminder.id, enabled)
             val context = getApplication<Application>()
+            if (!enabled) repository.setSnoozedUntil(reminder.id, null)
             if (enabled && reminder.triggerAtMillis > System.currentTimeMillis()) {
                 ReminderScheduler.schedule(context, reminder.copy(enabled = true))
             } else {

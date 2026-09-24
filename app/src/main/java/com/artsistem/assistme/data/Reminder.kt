@@ -46,6 +46,8 @@ data class Reminder(
     val repeatEndMillis: Long? = null,
     /** Kalan tekrar sayısı; null = sınırsız. 0'a inince hatırlatma pasifleşir. */
     val repeatCount: Int? = null,
+    /** Ertelenmişse ertelenen alarmın çalacağı zaman (epoch ms); null = erteleme yok. */
+    val snoozedUntilMillis: Long? = null,
     val createdAtMillis: Long = System.currentTimeMillis()
 ) {
     /** Bu hatırlatma tekrarlı mı? */

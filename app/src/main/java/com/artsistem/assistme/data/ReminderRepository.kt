@@ -36,6 +36,10 @@ class ReminderRepository(
 
     suspend fun updateRepeatCount(id: Long, count: Int?) = dao.updateRepeatCount(id, count)
 
+    suspend fun setSnoozedUntil(id: Long, until: Long?) = dao.setSnoozedUntil(id, until)
+
+    suspend fun getAllSnoozed(): List<Reminder> = dao.getAllSnoozed()
+
     // --- Tamamlananlar geçmişi ---
 
     fun observeHistory(): Flow<List<ReminderHistory>> =

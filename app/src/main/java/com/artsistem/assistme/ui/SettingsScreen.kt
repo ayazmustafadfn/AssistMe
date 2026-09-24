@@ -16,6 +16,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PanTool
+import androidx.compose.material.icons.filled.SystemUpdate
+import com.artsistem.assistme.update.AppUpdater
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -39,7 +41,7 @@ import com.artsistem.assistme.reminder.Settings
 /** Uygulama ayarları: alarm melodisi + ele alınca sessize alma. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit) {
+fun SettingsScreen(onBack: () -> Unit, onCheckUpdate: () -> Unit) {
     val context = LocalContext.current
     var soundUri by remember { mutableStateOf(Settings.getAlarmSoundUri(context)) }
     var pickupMute by remember { mutableStateOf(Settings.isPickupMuteEnabled(context)) }
@@ -110,6 +112,18 @@ fun SettingsScreen(onBack: () -> Unit) {
                         Settings.setPickupMuteEnabled(context, it)
                     })
                 }
+            )
+            Text(
+                "Uygulama",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp)
+            )
+            ListItem(
+                modifier = Modifier.clickable(onClick = onCheckUpdate),
+                leadingContent = { Icon(Icons.Filled.SystemUpdate, contentDescription = null) },
+                headlineContent = { Text("Güncellemeleri denetle") },
+                supportingContent = { Text("Sürüm ${AppUpdater.currentVersionName(context)}") }
             )
         }
     }

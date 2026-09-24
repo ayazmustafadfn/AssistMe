@@ -33,6 +33,11 @@ import com.artsistem.assistme.ui.ReminderListScreen
 import com.artsistem.assistme.ui.ReminderViewModel
 import com.artsistem.assistme.ui.SettingsScreen
 import com.artsistem.assistme.ui.theme.AssistMeTheme
+import com.artsistem.assistme.update.UpdatePrompt
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 
 class MainActivity : ComponentActivity() {
 
@@ -55,6 +60,10 @@ class MainActivity : ComponentActivity() {
                     requestExactAlarmIfNeeded(context)
                     requestFullScreenIntentIfNeeded(context)
                 }
+
+                // Açılışta güncelleme denetimi; Ayarlar'dan elle de tetiklenir.
+                var updateCheck by remember { mutableIntStateOf(0) }
+                UpdatePrompt(manualCheck = updateCheck)
 
                 val navController = rememberNavController()
                 val viewModel: ReminderViewModel =
@@ -81,7 +90,10 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     composable("settings") {
-                        SettingsScreen(onBack = { navController.popBackStack() })
+                        SettingsScreen(
+                            onBack = { navController.popBackStack() },
+                            onCheckUpdate = { updateCheck++ }
+                        )
                     }
                     composable("mail") {
                         MailScreen(

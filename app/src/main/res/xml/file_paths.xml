@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Güncelleme APK'sı sistem kurucusuna bu yol üzerinden verilir. -->
+<paths>
+    <cache-path name="updates" path="updates/" />
+</paths>

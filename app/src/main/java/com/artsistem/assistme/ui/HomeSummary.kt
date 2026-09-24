@@ -49,6 +49,12 @@ fun summarizeDay(
     }
 
     val items = mutableListOf<DayItem>()
+    // Bugün zaten çalmış olanlar: tek seferlikler çalınca pasifleşir, tekrarlılar
+    // ileri sarılır; ikisi de yalnızca geçmişte iz bırakır.
+    if (dayOffset == 0) {
+        history.filter { it.kind == "fired" && it.completedAtMillis in dayStart until dayEnd }
+            .forEach { items += DayItem(it.completedAtMillis, it.title, false) }
+    }
     for (r in reminders) {
         r.snoozedUntilMillis?.let { if (it in dayStart until dayEnd) items += DayItem(it, r.title, true) }
         if (!r.enabled) continue

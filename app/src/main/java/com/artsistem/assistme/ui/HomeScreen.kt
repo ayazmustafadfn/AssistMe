@@ -1,6 +1,19 @@
 package com.artsistem.assistme.ui
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Checklist
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.text.style.TextOverflow
+import com.artsistem.assistme.data.Reminder
+import com.artsistem.assistme.data.ReminderHistory
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateIntOffsetAsState
@@ -143,7 +156,7 @@ fun HomeScreen(
 
     val modules = listOf(
         HomeModule(
-            "reminders", "Hatırlatmalar", Icons.Filled.Notifications, ModuleAccent.PRIMARY,
+            "reminders", "Hatırlatmalar", Icons.Outlined.Notifications, ModuleAccent.PRIMARY,
             count = reminders.count { it.enabled },
             detail = listOfNotNull(
                 "Bugün ${today.upcoming.size}",
@@ -152,25 +165,25 @@ fun HomeScreen(
             onOpen = onOpenReminders
         ),
         HomeModule(
-            "tasks", "Görevler", Icons.Filled.Checklist, ModuleAccent.TERTIARY,
+            "tasks", "Görevler", Icons.Outlined.Checklist, ModuleAccent.TERTIARY,
             count = openTasks,
-            detail = "açık · ${tasks.size - openTasks} tamamlandı",
+            detail = "${tasks.size - openTasks} tamamlandı",
             onOpen = onOpenTasks
         ),
         HomeModule(
-            "notes", "Notlar", Icons.Filled.Description, ModuleAccent.SECONDARY,
+            "notes", "Notlar", Icons.Outlined.Description, ModuleAccent.SECONDARY,
             count = notes.size,
             detail = notes.count { it.pinned }.let { if (it > 0) "$it sabitlenmiş" else "" },
             onOpen = onOpenNotes
         ),
         HomeModule(
-            "mail", "Mail", Icons.Filled.Email, ModuleAccent.PRIMARY,
+            "mail", "Mail", Icons.Outlined.Email, ModuleAccent.PRIMARY,
             count = if (mailConnected) mails.count { !it.isRead } else null,
             detail = if (mailConnected) "$criticalMails kritik · $replyMails yanıt bekliyor" else "Bağlı değil",
             onOpen = onOpenMail
         ),
         HomeModule(
-            "calendar", "Takvim", Icons.Filled.CalendarMonth, ModuleAccent.NEUTRAL,
+            "calendar", "Takvim", Icons.Outlined.CalendarMonth, ModuleAccent.NEUTRAL,
             count = null, detail = "", onOpen = null
         )
     ).associateBy { it.key }
@@ -188,23 +201,27 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState(), enabled = !editing)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            // Sade üst çubuk: küçük harf aralıklı başlık, metin düğmesi, ayar ikonu.
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "AssistMe",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.ExtraBold,
+                    "ASSISTME",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 1.6.sp,
                     modifier = Modifier.weight(1f)
                 )
-                if (editing) {
-                    FilledTonalButton(onClick = { editing = false }) { Text("Bitti") }
-                } else {
-                    OutlinedButton(onClick = { editing = true }) { Text("Düzenle") }
+                TextButton(onClick = { editing = !editing }) {
+                    Text(
+                        if (editing) "Bitti" else "Düzenle",
+                        color = if (editing) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
                 IconButton(onClick = onOpenSettings) {
-                    Icon(Icons.Filled.Settings, contentDescription = "Ayarlar")
+                    Icon(Icons.Outlined.Settings, contentDescription = "Ayarlar")
                 }
             }
 
@@ -242,14 +259,21 @@ fun HomeScreen(
     }
 }
 
+/** Kutu/kart zemini: açık temada düz beyaz, koyuda zeminden bir ton açık. */
+@Composable
+private fun cardColor(): Color {
+    val cs = MaterialTheme.colorScheme
+    return if (cs.background.luminance() > 0.5f) cs.surfaceContainerLowest else cs.surfaceContainerHigh
+}
+
 // ---------------------------------------------------------------------------
 // Günlük özet kartı (sağa-sola kaydırılabilir)
 // ---------------------------------------------------------------------------
 
 @Composable
 private fun DayBriefPager(
-    reminders: List<com.artsistem.assistme.data.Reminder>,
-    history: List<com.artsistem.assistme.data.ReminderHistory>,
+    reminders: List<Reminder>,
+    history: List<ReminderHistory>,
     now: Long,
     openTasks: Int,
     replyMails: Int
@@ -257,21 +281,13 @@ private fun DayBriefPager(
     val pagerState = rememberPagerState(initialPage = TODAY_PAGE) { DAY_PAGES }
     val scope = rememberCoroutineScope()
 
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         HorizontalPager(state = pagerState, pageSpacing = 12.dp) { page ->
             val offset = page - TODAY_PAGE
             val summary = remember(offset, reminders, history, now) {
                 summarizeDay(offset, reminders, history, now)
             }
-            DayBriefCard(
-                offset = offset,
-                summary = summary,
-                now = now,
-                openTasks = openTasks,
-                replyMails = replyMails,
-                onPrev = { scope.launch { pagerState.animateScrollToPage(page - 1) } },
-                onNext = { scope.launch { pagerState.animateScrollToPage(page + 1) } }
-            )
+            DayBriefCard(offset, summary, now, openTasks, replyMails)
         }
         if (pagerState.currentPage != TODAY_PAGE) {
             TextButton(
@@ -288,17 +304,13 @@ private fun DayBriefCard(
     summary: DaySummary,
     now: Long,
     openTasks: Int,
-    replyMails: Int,
-    onPrev: () -> Unit,
-    onNext: () -> Unit
+    replyMails: Int
 ) {
     val cs = MaterialTheme.colorScheme
-    val container = cs.inverseSurface
-    val content = cs.inverseOnSurface
-    val accent = cs.inversePrimary
     val day = Date(summary.dayStart)
-    val bold = SpanStyle(fontWeight = FontWeight.Bold, color = accent)
+    val strong = SpanStyle(fontWeight = FontWeight.Medium, color = cs.onSurface)
 
+    val next = if (offset == 0) summary.upcoming.firstOrNull { it.atMillis >= now } else null
     val sentence = buildAnnotatedString {
         when {
             offset < 0 -> {
@@ -306,106 +318,93 @@ private fun DayBriefCard(
                 val done = summary.history.count { it.kind == "done" }
                 if (summary.history.isEmpty()) append("Bu günden kayıt yok.")
                 else {
-                    withStyle(bold) { append("$fired hatırlatma") }; append(" çaldı")
-                    if (done > 0) { append(", "); withStyle(bold) { append("$done") }; append(" tamamlandı") }
+                    withStyle(strong) { append("$fired hatırlatma") }; append(" çaldı")
+                    if (done > 0) append(", $done tamamlandı")
                     append(".")
+                    summary.history.lastOrNull()?.let { append(" Son: ${it.title}.") }
                 }
             }
             offset == 0 -> {
-                append("Bugün ")
-                if (summary.upcoming.isEmpty()) append("hatırlatma yok")
-                else withStyle(bold) { append("${summary.upcoming.size} hatırlatma") }
-                append(" ve ")
-                withStyle(bold) { append("$openTasks açık görev") }
-                append(" var.")
-                if (replyMails > 0) {
-                    append(" "); withStyle(bold) { append("$replyMails mail") }; append(" yanıt bekliyor.")
+                if (summary.upcoming.isEmpty()) append("Hatırlatma yok")
+                else withStyle(strong) { append("${summary.upcoming.size} hatırlatma") }
+                append(", $openTasks açık görev.")
+                if (replyMails > 0) append(" $replyMails mail yanıt bekliyor.")
+                when {
+                    next != null -> append(" Sıradaki ${formatHm(next.atMillis)} ${next.title}.")
+                    summary.upcoming.isNotEmpty() -> append(" Bugünkü hatırlatmalar bitti.")
                 }
             }
             else -> {
                 if (summary.upcoming.isEmpty()) append("Bu gün için hatırlatma yok.")
-                else { withStyle(bold) { append("${summary.upcoming.size} hatırlatma") }; append(" var.") }
+                else {
+                    withStyle(strong) { append("${summary.upcoming.size} hatırlatma") }
+                    val first = summary.upcoming.first()
+                    append(". İlki ${formatHm(first.atMillis)} ${first.title}.")
+                }
             }
         }
-    }
-
-    // Alt satır: bugün sıradaki; gelecekte ilk üç; geçmişte son kayıtlar.
-    val detailLines: List<String> = when {
-        offset < 0 -> summary.history.takeLast(3).map {
-            val kind = if (it.kind == "done") "tamamlandı" else "çaldı"
-            "${formatHm(it.completedAtMillis)} · ${it.title} ($kind)"
-        }
-        offset == 0 -> {
-            val next = summary.upcoming.firstOrNull { it.atMillis >= now }
-            when {
-                next != null -> listOf("Sıradaki: ${formatHm(next.atMillis)} · ${next.title}")
-                summary.upcoming.isNotEmpty() -> listOf("Bugünkü hatırlatmalar bitti")
-                else -> emptyList()
-            }
-        }
-        else -> summary.upcoming.take(3).map { "${formatHm(it.atMillis)} · ${it.title}" }
     }
 
     Card(
-        colors = CardDefaults.cardColors(containerColor = container, contentColor = content),
-        shape = RoundedCornerShape(24.dp),
-        modifier = Modifier.fillMaxWidth().heightIn(min = 168.dp)
+        colors = CardDefaults.cardColors(containerColor = cardColor(), contentColor = cs.onSurface),
+        shape = RoundedCornerShape(22.dp),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 150.dp)
     ) {
-        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    SimpleDateFormat("d", trLocale).format(day),
-                    fontSize = 44.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    lineHeight = 44.sp
-                )
-                Column(modifier = Modifier.padding(start = 10.dp).weight(1f)) {
-                    Text(SimpleDateFormat("MMMM yyyy", trLocale).format(day), style = MaterialTheme.typography.bodyMedium)
+                // Takvim yaprağı: gün + kısa ay
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .border(BorderStroke(1.dp, cs.outlineVariant), RoundedCornerShape(14.dp))
+                        .padding(top = 6.dp)
+                ) {
+                    Text(
+                        SimpleDateFormat("d", trLocale).format(day),
+                        fontSize = 20.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        SimpleDateFormat("MMM", trLocale).format(day).uppercase(trLocale),
+                        fontSize = 9.sp, lineHeight = 10.sp, letterSpacing = 0.8.sp,
+                        color = cs.onSurfaceVariant
+                    )
+                }
+                Column(modifier = Modifier.padding(start = 12.dp)) {
                     Text(
                         SimpleDateFormat("EEEE", trLocale).format(day),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = content.copy(alpha = 0.7f)
+                        style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium
                     )
-                }
-                Surface(shape = RoundedCornerShape(50), color = content.copy(alpha = 0.12f), contentColor = content) {
-                    Text(
-                        relativeDayLabel(offset),
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                    )
+                    Text(relativeDayLabel(offset), style = MaterialTheme.typography.bodySmall, color = cs.onSurfaceVariant)
                 }
             }
-            Text(sentence, style = MaterialTheme.typography.bodyLarge)
-            if (detailLines.isNotEmpty()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(content.copy(alpha = 0.08f))
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    detailLines.forEach { Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 1) }
-                }
-            }
-            // Kaydırma ipucu + dokunarak gün değiştirme.
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                DayNavButton(Icons.AutoMirrored.Filled.KeyboardArrowLeft, relativeDayLabel(offset - 1), content, onPrev)
-                DayNavButton(Icons.AutoMirrored.Filled.KeyboardArrowRight, relativeDayLabel(offset + 1), content, onNext, trailing = true)
-            }
+            Text(sentence, style = MaterialTheme.typography.bodyMedium, color = cs.onSurfaceVariant)
+            SegmentBar(offset, summary, now)
         }
     }
 }
 
+/**
+ * Günün hatırlatmaları kadar parça: geçenler koyu, sıradaki vurgu renginde,
+ * sonrakiler açık. Geçmiş günde tüm parçalar dolu (çalan kayıt sayısı kadar).
+ */
 @Composable
-private fun DayNavButton(icon: ImageVector, label: String, tint: Color, onClick: () -> Unit, trailing: Boolean = false) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.clip(RoundedCornerShape(50)).clickable(onClick = onClick).padding(horizontal = 4.dp, vertical = 2.dp)
-    ) {
-        if (!trailing) Icon(icon, contentDescription = null, tint = tint.copy(alpha = 0.7f), modifier = Modifier.size(18.dp))
-        Text(label, style = MaterialTheme.typography.labelMedium, color = tint.copy(alpha = 0.7f))
-        if (trailing) Icon(icon, contentDescription = null, tint = tint.copy(alpha = 0.7f), modifier = Modifier.size(18.dp))
+private fun SegmentBar(offset: Int, summary: DaySummary, now: Long) {
+    val cs = MaterialTheme.colorScheme
+    val count = if (offset < 0) summary.history.count { it.kind == "fired" } else summary.upcoming.size
+    if (count == 0) return
+    val nextIndex = if (offset == 0) summary.upcoming.indexOfFirst { it.atMillis >= now } else -1
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
+        repeat(count.coerceAtMost(12)) { i ->
+            val color = when {
+                offset < 0 -> cs.onSurface
+                offset > 0 -> cs.surfaceVariant
+                i == nextIndex -> cs.primary
+                nextIndex == -1 || i < nextIndex -> cs.onSurface
+                else -> cs.surfaceVariant
+            }
+            Box(modifier = Modifier.weight(1f).height(3.dp).clip(RoundedCornerShape(50)).background(color))
+        }
     }
 }
 
@@ -449,15 +448,18 @@ private fun ReorderableModuleGrid(
 
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val density = LocalDensity.current
-        val gap = 12.dp
-        val cell = (maxWidth - gap) / 2
+        val gap = 10.dp
+        val cellW = (maxWidth - gap) / 2
+        val cellH = 116.dp
         val rows = (modules.size + 1) / 2
-        val cellPx = with(density) { cell.toPx() }
-        val stepPx = with(density) { (cell + gap).toPx() }
+        val cellWPx = with(density) { cellW.toPx() }
+        val cellHPx = with(density) { cellH.toPx() }
+        val stepX = with(density) { (cellW + gap).toPx() }
+        val stepY = with(density) { (cellH + gap).toPx() }
 
-        fun slot(index: Int) = Offset((index % 2) * stepPx, (index / 2) * stepPx)
+        fun slot(index: Int) = Offset((index % 2) * stepX, (index / 2) * stepY)
 
-        Box(modifier = Modifier.fillMaxWidth().height(cell * rows + gap * (rows - 1).coerceAtLeast(0))) {
+        Box(modifier = Modifier.fillMaxWidth().height(cellH * rows + gap * (rows - 1).coerceAtLeast(0))) {
             modules.forEachIndexed { index, module ->
                 key(module.key) {
                     val isDragging = draggingKey == module.key
@@ -474,7 +476,8 @@ private fun ReorderableModuleGrid(
                                     (target.y + dragOffset.y).roundToInt()
                                 ) else animated
                             }
-                            .size(cell)
+                            .width(cellW)
+                            .height(cellH)
                             .rotate(if (editing && !isDragging) (if (index % 2 == 0) angle else -angle) else 0f)
                             .pointerInput(module.key, editing) {
                                 if (!editing) return@pointerInput
@@ -488,9 +491,9 @@ private fun ReorderableModuleGrid(
                                         val list = currentModules
                                         val from = list.indexOfFirst { it.key == module.key }
                                         if (from < 0) return@detectDragGestures
-                                        val center = slot(from) + dragOffset + Offset(cellPx / 2, cellPx / 2)
-                                        val col = (center.x / stepPx).toInt().coerceIn(0, 1)
-                                        val row = (center.y / stepPx).toInt().coerceIn(0, (list.size - 1) / 2)
+                                        val center = slot(from) + dragOffset + Offset(cellWPx / 2, cellHPx / 2)
+                                        val col = (center.x / stepX).toInt().coerceIn(0, 1)
+                                        val row = (center.y / stepY).toInt().coerceIn(0, (list.size - 1) / 2)
                                         val to = (row * 2 + col).coerceAtMost(list.size - 1)
                                         if (to != from) {
                                             currentOnMove(from, to)
@@ -514,60 +517,47 @@ private fun ReorderableModuleGrid(
     }
 }
 
+/** Minimal kutu: modül renginde ince ikon + ince büyük rakam; başlık ve açıklama altta. */
 @Composable
 private fun ModuleCard(module: HomeModule, editing: Boolean, lifted: Boolean, onClick: () -> Unit) {
     val available = module.onOpen != null
     val cs = MaterialTheme.colorScheme
-    val (container, content) = when {
-        !available -> cs.surfaceVariant to cs.onSurfaceVariant
-        module.accent == ModuleAccent.PRIMARY -> cs.primaryContainer to cs.onPrimaryContainer
-        module.accent == ModuleAccent.SECONDARY -> cs.secondaryContainer to cs.onSecondaryContainer
-        module.accent == ModuleAccent.TERTIARY -> cs.tertiaryContainer to cs.onTertiaryContainer
-        else -> cs.surfaceVariant to cs.onSurfaceVariant
+    val accent = when {
+        !available -> cs.outline
+        module.accent == ModuleAccent.PRIMARY -> cs.primary
+        module.accent == ModuleAccent.SECONDARY -> cs.secondary
+        module.accent == ModuleAccent.TERTIARY -> cs.tertiary
+        else -> cs.outline
     }
 
     Card(
         modifier = Modifier.fillMaxSize().clickable(enabled = !editing, onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = container, contentColor = content),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (lifted) 8.dp else 0.dp),
-        shape = RoundedCornerShape(24.dp)
+        colors = CardDefaults.cardColors(containerColor = cardColor(), contentColor = cs.onSurface),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (lifted) 6.dp else 0.dp),
+        shape = RoundedCornerShape(20.dp)
     ) {
-        Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Box(modifier = Modifier.fillMaxSize().padding(14.dp)) {
             Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
-                Box(
-                    modifier = Modifier.size(44.dp).clip(CircleShape).background(content.copy(alpha = 0.14f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(module.icon, contentDescription = null, tint = content, modifier = Modifier.size(24.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(module.icon, contentDescription = null, tint = accent, modifier = Modifier.size(26.dp))
+                    Text(
+                        module.count?.toString() ?: if (available) "" else "Yakında",
+                        fontSize = if (module.count != null) 30.sp else 12.sp,
+                        lineHeight = if (module.count != null) 30.sp else 14.sp,
+                        fontWeight = if (module.count != null) FontWeight.Light else FontWeight.Normal,
+                        color = if (module.count != null) cs.onSurface else cs.outline,
+                        modifier = Modifier.padding(start = 10.dp)
+                    )
                 }
                 Column {
-                    when {
-                        module.count != null -> Text(
-                            module.count.toString(),
-                            fontSize = 36.sp,
-                            lineHeight = 38.sp,
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                        !available -> Surface(
-                            shape = RoundedCornerShape(50),
-                            color = content.copy(alpha = 0.12f),
-                            contentColor = content,
-                            modifier = Modifier.padding(bottom = 6.dp)
-                        ) {
-                            Text(
-                                "Yakında",
-                                style = MaterialTheme.typography.labelMedium,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
-                            )
-                        }
-                    }
-                    Text(module.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text(module.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                     if (module.detail.isNotBlank()) {
                         Text(
                             module.detail,
                             style = MaterialTheme.typography.bodySmall,
-                            color = content.copy(alpha = 0.8f),
-                            maxLines = 2
+                            color = cs.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -576,8 +566,8 @@ private fun ModuleCard(module: HomeModule, editing: Boolean, lifted: Boolean, on
                 Icon(
                     Icons.Filled.DragIndicator,
                     contentDescription = "Sürükle",
-                    tint = content.copy(alpha = 0.7f),
-                    modifier = Modifier.align(Alignment.TopEnd).size(22.dp)
+                    tint = cs.outline,
+                    modifier = Modifier.align(Alignment.TopEnd).size(20.dp)
                 )
             }
         }

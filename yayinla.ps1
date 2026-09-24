@@ -1,4 +1,4 @@
-# AssistMe yeni sürüm yayınlama
+﻿# AssistMe yeni sürüm yayınlama
 #
 # Kullanım:  .\yayinla.ps1 -Not "Neler değişti (kullanıcının göreceği metin)"
 #
@@ -24,8 +24,12 @@ $name = [regex]::Match($gradle, 'versionName\s*=\s*"([^"]+)"').Groups[1].Value
 if (-not $code -or -not $name) { throw 'versionCode / versionName okunamadı' }
 
 $tag = "v$name"
-$exists = gh release view $tag 2>$null
-if ($LASTEXITCODE -eq 0) { throw "$tag zaten yayınlanmış. Önce versionCode/versionName'i artırın." }
+# PS 5.1: native komutun stderr'i 'Stop' altında hata sayılır; bu denetimde yumuşat.
+$ErrorActionPreference = 'Continue'
+gh release view $tag *> $null
+$varMi = ($LASTEXITCODE -eq 0)
+# Bundan sonra native komutların stderr uyarıları betiği durdurmasın; hatalar çıkış koduyla yakalanır.
+if ($varMi) { throw "$tag zaten yayınlanmış. Önce versionCode/versionName'i artırın." }
 
 Write-Host "Derleniyor: $name ($code)..."
 .\gradlew.bat assembleDebug --quiet

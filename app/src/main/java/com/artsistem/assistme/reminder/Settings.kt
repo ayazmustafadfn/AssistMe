@@ -70,6 +70,16 @@ object Settings {
         prefs(context).edit().putBoolean(KEY_PICKUP_MUTE, enabled).apply()
     }
 
+    // --- Alarm ekranı arka plan rengi ---
+    private const val KEY_ALARM_BG = "alarm_bg_color"
+
+    /** Alarm ekranı zemin rengi (ARGB); 0 = varsayılan (tema kırmızısı). */
+    fun getAlarmBgColor(context: Context): Int = prefs(context).getInt(KEY_ALARM_BG, 0)
+
+    fun setAlarmBgColor(context: Context, argb: Int) {
+        prefs(context).edit().putInt(KEY_ALARM_BG, argb).apply()
+    }
+
     // --- Ana ekran kutu sırası ---
     private const val KEY_HOME_ORDER = "home_module_order"
 

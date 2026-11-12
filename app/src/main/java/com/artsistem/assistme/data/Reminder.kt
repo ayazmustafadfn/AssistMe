@@ -48,6 +48,9 @@ data class Reminder(
     val repeatCount: Int? = null,
     /** Ertelenmişse ertelenen alarmın çalacağı zaman (epoch ms); null = erteleme yok. */
     val snoozedUntilMillis: Long? = null,
+    /** true = alarm çalınca ses yok, yalnızca titreşim. */
+    @ColumnInfo(defaultValue = "0")
+    val vibrateOnly: Boolean = false,
     val createdAtMillis: Long = System.currentTimeMillis()
 ) {
     /** Bu hatırlatma tekrarlı mı? */

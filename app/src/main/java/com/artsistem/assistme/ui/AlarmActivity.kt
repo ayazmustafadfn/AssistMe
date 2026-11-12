@@ -58,6 +58,15 @@ import com.artsistem.assistme.reminder.Notifications
 import com.artsistem.assistme.reminder.ReminderScheduler
 import com.artsistem.assistme.reminder.Settings
 import com.artsistem.assistme.ui.theme.AssistMeTheme
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import java.util.Calendar
 
 /**
  * Hatırlatma zamanı geldiğinde dolu ekran açılan alarm ekranı.
@@ -88,8 +97,11 @@ class AlarmActivity : ComponentActivity(), SensorEventListener {
         )
         val note = intent.getStringExtra(EXTRA_NOTE).orEmpty()
         val lastCustom = Settings.getLastCustomSnoozeMinutes(this)
+        val vibrateOnly = intent.getBooleanExtra(EXTRA_VIBRATE_ONLY, false)
+        val bgArgb = Settings.getAlarmBgColor(this)
 
-        AlarmPlayer.start(this)
+        // Normalde bildirimle birlikte zaten başlamıştır; değilse burada başlar.
+        AlarmPlayer.start(this, vibrateOnly)
         autoDismiss.postDelayed({ finishAlarm() }, AUTO_DISMISS_MS)
         if (Settings.isPickupMuteEnabled(this)) startPickupDetection()
 
@@ -100,7 +112,9 @@ class AlarmActivity : ComponentActivity(), SensorEventListener {
                     note = note,
                     lastCustomMinutes = lastCustom,
                     muted = muted.value,
+                    bgArgb = bgArgb,
                     onSnooze = { minutes -> snooze(minutes) },
+                    onSnoozeAt = { at -> snooze(0, at) },
                     onDone = { done() },
                     onDismiss = { dismiss() }
                 )
@@ -180,13 +194,15 @@ class AlarmActivity : ComponentActivity(), SensorEventListener {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
-    private fun snooze(minutes: Int) {
+    /** [minutes] sonra ertele; [atMillis] > 0 ise o kesin zamana ertele. */
+    private fun snooze(minutes: Int, atMillis: Long = 0L) {
         if (reminderId != -1L) {
             sendBroadcast(
                 Intent(this, NotificationActionReceiver::class.java).apply {
                     action = NotificationActionReceiver.ACTION_SNOOZE
                     putExtra(ReminderScheduler.EXTRA_REMINDER_ID, reminderId)
-                    putExtra(NotificationActionReceiver.EXTRA_SNOOZE_MINUTES, minutes)
+                    putExtra(NotificationActionReceiver.EXTRA_SNOOZE_MINUTES, minutes.coerceAtLeast(1))
+                    if (atMillis > 0L) putExtra(NotificationActionReceiver.EXTRA_SNOOZE_AT, atMillis)
                 }
             )
         }
@@ -232,6 +248,7 @@ class AlarmActivity : ComponentActivity(), SensorEventListener {
         const val EXTRA_NOTE = "extra_note"
         const val EXTRA_SNOOZE_MINUTES = "extra_snooze_minutes"
         const val EXTRA_REPEATING = "extra_repeating"
+        const val EXTRA_VIBRATE_ONLY = "extra_vibrate_only"
 
         /** Kimse dokunmazsa 2 dakika sonra otomatik sustur. */
         private const val AUTO_DISMISS_MS = 2 * 60 * 1000L
@@ -250,6 +267,23 @@ fun formatSnoozeLabel(minutes: Int): String = when {
     else -> "${minutes / 60} sa ${minutes % 60} dk"
 }
 
+/** Alarm ekranı zemin seçenekleri (Ayarlar). 0 = tema kırmızısı (varsayılan). */
+val AlarmBgPalette: List<Pair<Int, String>> = listOf(
+    0 to "Kırmızı",
+    0xFFC8553D.toInt() to "Kiremit",
+    0xFFE0A030.toInt() to "Amber",
+    0xFF2E7D5B.toInt() to "Yeşil",
+    0xFF1E6FA8.toInt() to "Mavi",
+    0xFF5E3A8C.toInt() to "Mor",
+    0xFFD86A8A.toInt() to "Pembe",
+    0xFF263238.toInt() to "Gece",
+    0xFFF3EEE6.toInt() to "Krem"
+)
+
+/** Zemin rengine göre okunaklı yazı/ikon rengi. */
+fun alarmContentColor(bg: Color): Color =
+    if (bg.luminance() > 0.5f) Color(0xFF1C1B1F) else Color.White
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AlarmScreen(
@@ -257,7 +291,9 @@ private fun AlarmScreen(
     note: String,
     lastCustomMinutes: Int,
     muted: Boolean,
+    bgArgb: Int,
     onSnooze: (Int) -> Unit,
+    onSnoozeAt: (Long) -> Unit,
     onDone: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -267,9 +303,16 @@ private fun AlarmScreen(
         lastCustomMinutes != Settings.SNOOZE_SHORT_MINUTES &&
         lastCustomMinutes != Settings.SNOOZE_LONG_MINUTES
 
+    val bg = if (bgArgb == 0) MaterialTheme.colorScheme.errorContainer else Color(bgArgb)
+    val fg = if (bgArgb == 0) MaterialTheme.colorScheme.onErrorContainer else alarmContentColor(bg)
+    val tonal = ButtonDefaults.filledTonalButtonColors(
+        containerColor = fg.copy(alpha = 0.14f),
+        contentColor = fg
+    )
+
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.errorContainer
+        color = bg
     ) {
         Column(
             modifier = Modifier.fillMaxSize().padding(32.dp),
@@ -280,12 +323,12 @@ private fun AlarmScreen(
                 imageVector = Icons.Filled.Alarm,
                 contentDescription = null,
                 modifier = Modifier.size(96.dp),
-                tint = MaterialTheme.colorScheme.onErrorContainer
+                tint = fg
             )
             Text(
                 text = title,
                 style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onErrorContainer,
+                color = fg,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(top = 24.dp)
             )
@@ -293,7 +336,7 @@ private fun AlarmScreen(
                 Text(
                     text = note,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    color = fg,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(top = 12.dp)
                 )
@@ -306,13 +349,13 @@ private fun AlarmScreen(
                     Icon(
                         Icons.Filled.VolumeOff,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                        tint = fg,
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
                         "  Sessize alındı",
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onErrorContainer
+                        color = fg
                     )
                 }
             }
@@ -322,8 +365,8 @@ private fun AlarmScreen(
                 onClick = onDone,
                 modifier = Modifier.fillMaxWidth().padding(top = 40.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.onErrorContainer,
-                    contentColor = MaterialTheme.colorScheme.errorContainer
+                    containerColor = fg,
+                    contentColor = bg
                 )
             ) {
                 Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(20.dp))
@@ -335,18 +378,18 @@ private fun AlarmScreen(
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                FilledTonalButton(onClick = { onSnooze(Settings.SNOOZE_SHORT_MINUTES) }) {
+                FilledTonalButton(onClick = { onSnooze(Settings.SNOOZE_SHORT_MINUTES) }, colors = tonal) {
                     Text("15 dk")
                 }
-                FilledTonalButton(onClick = { onSnooze(Settings.SNOOZE_LONG_MINUTES) }) {
+                FilledTonalButton(onClick = { onSnooze(Settings.SNOOZE_LONG_MINUTES) }, colors = tonal) {
                     Text("1 saat")
                 }
                 if (showLastCustom) {
-                    FilledTonalButton(onClick = { onSnooze(lastCustomMinutes) }) {
+                    FilledTonalButton(onClick = { onSnooze(lastCustomMinutes) }, colors = tonal) {
                         Text(formatSnoozeLabel(lastCustomMinutes))
                     }
                 }
-                FilledTonalButton(onClick = { showPicker = true }) {
+                FilledTonalButton(onClick = { showPicker = true }, colors = tonal) {
                     Text("Diğer…")
                 }
             }
@@ -356,11 +399,8 @@ private fun AlarmScreen(
                 onClick = onDismiss,
                 modifier = Modifier.padding(top = 24.dp)
             ) {
-                Icon(Icons.Filled.Close, contentDescription = null, modifier = Modifier.size(20.dp))
-                Text(
-                    "  Kapat",
-                    color = MaterialTheme.colorScheme.onErrorContainer
-                )
+                Icon(Icons.Filled.Close, contentDescription = null, modifier = Modifier.size(20.dp), tint = fg)
+                Text("  Kapat", color = fg)
             }
         }
     }
@@ -372,23 +412,45 @@ private fun AlarmScreen(
                 showPicker = false
                 onSnooze(minutes)
             },
+            onConfirmAt = { at ->
+                showPicker = false
+                onSnoozeAt(at)
+            },
             onDismiss = { showPicker = false }
         )
     }
 }
 
+private enum class SnoozeMode { MINUTE, HOUR, DATE }
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SnoozePickerDialog(
     initialMinutes: Int,
     onConfirm: (Int) -> Unit,
+    onConfirmAt: (Long) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var isHour by remember { mutableStateOf(initialMinutes >= 60 && initialMinutes % 60 == 0) }
+    val startsInHours = initialMinutes >= 60 && initialMinutes % 60 == 0
+    var mode by remember { mutableStateOf(if (startsInHours) SnoozeMode.HOUR else SnoozeMode.MINUTE) }
     var amount by remember {
-        mutableIntStateOf(if (initialMinutes >= 60 && initialMinutes % 60 == 0) initialMinutes / 60 else initialMinutes)
+        mutableIntStateOf(if (startsInHours) initialMinutes / 60 else initialMinutes)
     }
+    // Tarih modu: varsayılan yarın aynı saat (5 dk'ya yuvarlı).
+    var targetAt by remember {
+        mutableLongStateOf(
+            Calendar.getInstance().apply {
+                add(Calendar.DAY_OF_YEAR, 1)
+                set(Calendar.MINUTE, (get(Calendar.MINUTE) / 5) * 5)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+        )
+    }
+    var showDate by remember { mutableStateOf(false) }
 
-    fun minutes(): Int = if (isHour) amount * 60 else amount
+    fun minutes(): Int = if (mode == SnoozeMode.HOUR) amount * 60 else amount
+    val isPast = mode == SnoozeMode.DATE && targetAt <= System.currentTimeMillis()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -398,45 +460,96 @@ private fun SnoozePickerDialog(
                 // Birim seçimi
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
-                        selected = !isHour,
-                        onClick = { if (isHour) { isHour = false; amount = 15 } },
+                        selected = mode == SnoozeMode.MINUTE,
+                        onClick = { if (mode != SnoozeMode.MINUTE) { mode = SnoozeMode.MINUTE; amount = 15 } },
                         label = { Text("Dakika") }
                     )
                     FilterChip(
-                        selected = isHour,
-                        onClick = { if (!isHour) { isHour = true; amount = 1 } },
+                        selected = mode == SnoozeMode.HOUR,
+                        onClick = { if (mode != SnoozeMode.HOUR) { mode = SnoozeMode.HOUR; amount = 1 } },
                         label = { Text("Saat") }
                     )
-                }
-                // Adımlayıcı
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = {
-                        amount = if (isHour) (amount - 1).coerceAtLeast(1)
-                        else (amount - 5).coerceAtLeast(5)
-                    }) {
-                        Icon(Icons.Filled.Remove, contentDescription = "Azalt")
-                    }
-                    Text(
-                        text = if (isHour) "$amount saat" else "$amount dk",
-                        style = MaterialTheme.typography.headlineSmall
+                    FilterChip(
+                        selected = mode == SnoozeMode.DATE,
+                        onClick = { mode = SnoozeMode.DATE },
+                        label = { Text("Tarih") }
                     )
-                    IconButton(onClick = {
-                        amount = if (isHour) amount + 1 else amount + 5
-                    }) {
-                        Icon(Icons.Filled.Add, contentDescription = "Artır")
+                }
+                if (mode == SnoozeMode.DATE) {
+                    // Belirli gün + saat (ör. yarın 09:00).
+                    OutlinedButton(onClick = { showDate = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text(formatDateTime(targetAt))
+                    }
+                    val cal = Calendar.getInstance().apply { timeInMillis = targetAt }
+                    TimeWheel(
+                        hour = cal.get(Calendar.HOUR_OF_DAY),
+                        minute = cal.get(Calendar.MINUTE),
+                        onChange = { h, m -> targetAt = withTime(targetAt, h, m) }
+                    )
+                    if (isPast) {
+                        Text(
+                            "Geçmiş bir zaman seçilemez",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                } else {
+                    // Adımlayıcı
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = {
+                            amount = if (mode == SnoozeMode.HOUR) (amount - 1).coerceAtLeast(1)
+                            else (amount - 5).coerceAtLeast(5)
+                        }) {
+                            Icon(Icons.Filled.Remove, contentDescription = "Azalt")
+                        }
+                        Text(
+                            text = if (mode == SnoozeMode.HOUR) "$amount saat" else "$amount dk",
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                        IconButton(onClick = {
+                            amount = if (mode == SnoozeMode.HOUR) amount + 1 else amount + 5
+                        }) {
+                            Icon(Icons.Filled.Add, contentDescription = "Artır")
+                        }
                     }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(minutes()) }) { Text("Ertele") }
+            TextButton(
+                enabled = !isPast,
+                onClick = {
+                    if (mode == SnoozeMode.DATE) onConfirmAt(targetAt) else onConfirm(minutes())
+                }
+            ) { Text("Ertele") }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("İptal") }
         }
     )
+
+    if (showDate) {
+        val dateState = rememberDatePickerState(
+            initialSelectedDateMillis = toPickerMillis(targetAt),
+            selectableDates = TodayOrLaterDates
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDate = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    dateState.selectedDateMillis?.let { targetAt = combinePickedDate(it, targetAt) }
+                    showDate = false
+                }) { Text("Tamam") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDate = false }) { Text("İptal") }
+            }
+        ) {
+            DatePicker(state = dateState)
+        }
+    }
 }

@@ -10,6 +10,7 @@ import com.artsistem.assistme.data.Reminder
 import com.artsistem.assistme.data.ReminderGroup
 import com.artsistem.assistme.data.ReminderHistory
 import com.artsistem.assistme.data.ReminderRepository
+import com.artsistem.assistme.reminder.Recurrence
 import com.artsistem.assistme.reminder.ReminderScheduler
 import com.artsistem.assistme.reminder.Settings
 import kotlinx.coroutines.flow.SharingStarted
@@ -55,9 +56,11 @@ class ReminderViewModel(
 
     fun save(reminder: Reminder) {
         viewModelScope.launch {
+            // Tekrarlıda geçmiş başlangıç → ilk gelecek tekrara kaydır (yoksa hiç kurulmazdı).
+            val adjusted = advanceIfPast(reminder)
             // Düzenlenen hatırlatmanın bekleyen ertelemesi geçersiz olur.
-            val id = repository.upsert(reminder.copy(snoozedUntilMillis = null))
-            val saved = reminder.copy(id = id, snoozedUntilMillis = null)
+            val id = repository.upsert(adjusted.copy(snoozedUntilMillis = null))
+            val saved = adjusted.copy(id = id, snoozedUntilMillis = null)
             val context = getApplication<Application>()
             // Önce eski alarmı iptal et, sonra (aktifse) yenisini kur.
             ReminderScheduler.cancel(context, saved.id)
@@ -67,17 +70,36 @@ class ReminderViewModel(
         }
     }
 
-    fun toggleEnabled(reminder: Reminder, enabled: Boolean) {
+    /**
+     * Aç/kapa. Zamanı geçmiş TEK SEFERLİK hatırlatma açılamaz (geriye dönük
+     * alarm olmaz) → false döner, ekran uyarı gösterir. Tekrarlıda geçmiş
+     * zaman ilk gelecek tekrara kaydırılır.
+     */
+    fun toggleEnabled(reminder: Reminder, enabled: Boolean): Boolean {
+        val now = System.currentTimeMillis()
+        if (enabled && !reminder.isRepeating && reminder.triggerAtMillis <= now) return false
         viewModelScope.launch {
-            repository.setEnabled(reminder.id, enabled)
             val context = getApplication<Application>()
-            if (!enabled) repository.setSnoozedUntil(reminder.id, null)
-            if (enabled && reminder.triggerAtMillis > System.currentTimeMillis()) {
-                ReminderScheduler.schedule(context, reminder.copy(enabled = true))
-            } else {
+            if (!enabled) {
+                repository.setEnabled(reminder.id, false)
+                repository.setSnoozedUntil(reminder.id, null)
                 ReminderScheduler.cancel(context, reminder.id)
+                return@launch
             }
+            val adjusted = advanceIfPast(reminder)
+            if (adjusted.triggerAtMillis != reminder.triggerAtMillis) {
+                repository.updateTriggerTime(reminder.id, adjusted.triggerAtMillis)
+            }
+            repository.setEnabled(reminder.id, true)
+            ReminderScheduler.schedule(context, adjusted.copy(enabled = true))
         }
+        return true
+    }
+
+    private fun advanceIfPast(reminder: Reminder): Reminder {
+        if (!reminder.isRepeating || reminder.triggerAtMillis > System.currentTimeMillis()) return reminder
+        val next = Recurrence.nextTrigger(reminder) ?: return reminder
+        return reminder.copy(triggerAtMillis = next)
     }
 
     fun delete(reminder: Reminder) {

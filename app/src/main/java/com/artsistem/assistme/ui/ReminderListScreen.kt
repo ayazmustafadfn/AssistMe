@@ -67,6 +67,7 @@ fun ReminderListScreen(
     onHistory: () -> Unit,
     onBack: () -> Unit
 ) {
+    val listContext = androidx.compose.ui.platform.LocalContext.current
     val reminders by viewModel.reminders.collectAsState()
     val groups by viewModel.groups.collectAsState()
 
@@ -181,7 +182,17 @@ fun ReminderListScreen(
                             reminder = reminder,
                             group = reminder.groupId?.let { groupsById[it] },
                             onClick = { onEdit(reminder.id) },
-                            onToggle = { viewModel.toggleEnabled(reminder, it) },
+                            onToggle = {
+                                if (!viewModel.toggleEnabled(reminder, it)) {
+                                    // Zamanı geçmiş tek seferlik: geriye dönük açılmaz, yeni zaman seçtir.
+                                    android.widget.Toast.makeText(
+                                        listContext,
+                                        "Zamanı geçmiş; yeni bir zaman seçin",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                    onEdit(reminder.id)
+                                }
+                            },
                             onDelete = { viewModel.delete(reminder) }
                         )
                     }

@@ -66,6 +66,7 @@ fun ReminderEditScreen(
     var customMinutes by remember { mutableStateOf("30") }
     var groupId by remember { mutableStateOf<Long?>(null) }
     var flagged by remember { mutableStateOf(false) }
+    var vibrateOnly by remember { mutableStateOf(false) }
     var repeatEndMode by remember { mutableStateOf(RepeatEndMode.NONE) }
     var repeatEndDate by remember {
         mutableLongStateOf(
@@ -98,6 +99,7 @@ fun ReminderEditScreen(
                 repeatType = r.repeatType
                 groupId = r.groupId
                 flagged = r.flagged
+                vibrateOnly = r.vibrateOnly
                 if (r.repeatEndMillis != null) {
                     repeatEndMode = RepeatEndMode.DATE
                     repeatEndDate = r.repeatEndMillis!!
@@ -114,6 +116,14 @@ fun ReminderEditScreen(
     }
 
     var showDatePicker by remember { mutableStateOf(false) }
+    // Geçmiş zaman denetimi için dakikada bir yenilenen "şimdi".
+    var nowTick by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(60_000L - System.currentTimeMillis() % 60_000L)
+            nowTick = System.currentTimeMillis()
+        }
+    }
     // Kayıttaki 5'in katı olmayan dakika çarkta kaybolmasın.
     var extraMinute by remember { mutableStateOf<Int?>(null) }
 
@@ -160,6 +170,22 @@ fun ReminderEditScreen(
                 androidx.compose.material3.Switch(checked = flagged, onCheckedChange = { flagged = it })
             }
 
+            androidx.compose.foundation.layout.Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Sadece titreşim", style = androidx.compose.material3.MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "Alarm çalınca ses yok, yalnızca titreşir",
+                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                androidx.compose.material3.Switch(checked = vibrateOnly, onCheckedChange = { vibrateOnly = it })
+            }
+
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Zaman", style = androidx.compose.material3.MaterialTheme.typography.labelLarge)
@@ -177,6 +203,17 @@ fun ReminderEditScreen(
                         extraMinute = extraMinute,
                         onChange = { h, m -> triggerAt = combineTime(triggerAt, h, m) }
                     )
+                    // Tek seferlikte geçmiş zaman kaydedilemez; tekrarlıda ilk gelecek tekrara kayar.
+                    if (triggerAt <= nowTick) {
+                        Text(
+                            if (repeatType == RepeatType.NONE) "Geçmiş bir zaman seçilemez"
+                            else "Bu saat geçti; ilk tekrar bir sonraki zamanda çalar",
+                            color = if (repeatType == RepeatType.NONE)
+                                androidx.compose.material3.MaterialTheme.colorScheme.error
+                            else androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = androidx.compose.material3.MaterialTheme.typography.bodySmall
+                        )
+                    }
                 }
             }
 
@@ -270,14 +307,20 @@ fun ReminderEditScreen(
                         enabled = true,
                         groupId = groupId,
                         flagged = flagged,
+                        vibrateOnly = vibrateOnly,
                         repeatEndMillis = if (repeating && repeatEndMode == RepeatEndMode.DATE) repeatEndDate else null,
                         repeatCount = if (repeating && repeatEndMode == RepeatEndMode.COUNT)
                             repeatCountText.toIntOrNull()?.coerceAtLeast(1) else null
                     )
+                    // Son kontrol (ekran açıkken saat geçmiş olabilir).
+                    if (!repeating && triggerAt <= System.currentTimeMillis()) {
+                        nowTick = System.currentTimeMillis()
+                        return@Button
+                    }
                     viewModel.save(reminder)
                     onDone()
                 },
-                enabled = loaded,
+                enabled = loaded && !(repeatType == RepeatType.NONE && triggerAt <= nowTick),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Kaydet")
@@ -286,13 +329,16 @@ fun ReminderEditScreen(
     }
 
     if (showDatePicker) {
-        val dateState = rememberDatePickerState(initialSelectedDateMillis = triggerAt)
+        val dateState = rememberDatePickerState(
+            initialSelectedDateMillis = toPickerMillis(triggerAt),
+            selectableDates = TodayOrLaterDates
+        )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
                     dateState.selectedDateMillis?.let { picked ->
-                        triggerAt = combineDate(picked, triggerAt)
+                        triggerAt = combinePickedDate(picked, triggerAt)
                     }
                     showDatePicker = false
                 }) { Text("Tamam") }

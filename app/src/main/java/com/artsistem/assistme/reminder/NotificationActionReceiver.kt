@@ -33,8 +33,11 @@ class NotificationActionReceiver : BroadcastReceiver() {
             ACTION_SNOOZE -> {
                 val minutes = intent.getIntExtra(EXTRA_SNOOZE_MINUTES, Settings.SNOOZE_SHORT_MINUTES)
                     .coerceAtLeast(1)
-                // "Diğer…" ile seçilen özel süreyi hatırla (sabit 15/60 hariç).
-                if (minutes != Settings.SNOOZE_SHORT_MINUTES && minutes != Settings.SNOOZE_LONG_MINUTES) {
+                // "Diğer… → Tarih" ile seçilen kesin zaman (0 = yok, süre kullanılır).
+                val snoozeAtExtra = intent.getLongExtra(EXTRA_SNOOZE_AT, 0L)
+                val useAbsolute = snoozeAtExtra > System.currentTimeMillis()
+                // "Diğer…" ile seçilen özel süreyi hatırla (sabit 15/60 ve tarih seçimi hariç).
+                if (!useAbsolute && minutes != Settings.SNOOZE_SHORT_MINUTES && minutes != Settings.SNOOZE_LONG_MINUTES) {
                     Settings.setLastCustomSnoozeMinutes(appContext, minutes)
                 }
                 val pending = goAsync()
@@ -42,7 +45,8 @@ class NotificationActionReceiver : BroadcastReceiver() {
                     try {
                         val repo = ReminderRepository(AppDatabase.get(appContext).reminderDao())
                         val reminder = repo.getById(reminderId) ?: return@launch
-                        val snoozeAt = System.currentTimeMillis() + minutes * 60_000L
+                        val snoozeAt = if (useAbsolute) snoozeAtExtra
+                        else System.currentTimeMillis() + minutes * 60_000L
                         // Ertelemeyi DB'ye yaz (listede görünsün, yeniden başlatmada kurulsun).
                         // Tek seferlik hatırlatma tetiklenince pasifleşmişti; erteleme sürdükçe aktif.
                         repo.setSnoozedUntil(reminder.id, snoozeAt)
@@ -83,5 +87,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
         const val ACTION_DONE = "com.artsistem.assistme.ACTION_DONE"
         const val ACTION_DISMISS = "com.artsistem.assistme.ACTION_DISMISS"
         const val EXTRA_SNOOZE_MINUTES = "extra_snooze_minutes"
+        /** Kesin erteleme zamanı (epoch ms); verilirse dakika yerine kullanılır. */
+        const val EXTRA_SNOOZE_AT = "extra_snooze_at"
     }
 }

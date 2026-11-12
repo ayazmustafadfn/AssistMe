@@ -113,7 +113,8 @@ private data class HomeModule(
     val onOpen: (() -> Unit)?
 )
 
-private val DEFAULT_ORDER = listOf("reminders", "tasks", "notes", "mail", "calendar")
+// Mail modülü PASİF (iptal edilecek): ana ekranda gösterilmez.
+private val DEFAULT_ORDER = listOf("reminders", "tasks", "notes", "calendar")
 
 /** Özet kartında sağa-sola kaydırılabilen gün aralığı (bugün ortada). */
 private const val DAY_PAGES = 731
@@ -126,11 +127,9 @@ fun HomeScreen(
     reminderViewModel: ReminderViewModel,
     notesViewModel: NotesViewModel,
     tasksViewModel: TasksViewModel,
-    mailViewModel: MailViewModel,
     onOpenReminders: () -> Unit,
     onOpenNotes: () -> Unit,
     onOpenTasks: () -> Unit,
-    onOpenMail: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
     val context = LocalContext.current
@@ -138,8 +137,6 @@ fun HomeScreen(
     val history by reminderViewModel.history.collectAsState()
     val notes by notesViewModel.notes.collectAsState()
     val tasks by tasksViewModel.tasks.collectAsState()
-    val mails by mailViewModel.messages.collectAsState()
-    val mailConnected by mailViewModel.connected.collectAsState()
 
     // Dakikada bir yenilenen "şimdi": sıradaki hatırlatma ve gün geçişi güncel kalsın.
     val now by produceState(System.currentTimeMillis()) {
@@ -151,8 +148,6 @@ fun HomeScreen(
 
     val today = remember(reminders, history, now) { summarizeDay(0, reminders, history, now) }
     val openTasks = tasks.count { !it.done }
-    val criticalMails = mails.count { it.category == MailCategory.CRITICAL.name }
-    val replyMails = mails.count { it.category == MailCategory.NEEDS_REPLY.name }
 
     val modules = listOf(
         HomeModule(
@@ -175,12 +170,6 @@ fun HomeScreen(
             count = notes.size,
             detail = notes.count { it.pinned }.let { if (it > 0) "$it sabitlenmiş" else "" },
             onOpen = onOpenNotes
-        ),
-        HomeModule(
-            "mail", "Mail", Icons.Outlined.Email, ModuleAccent.PRIMARY,
-            count = if (mailConnected) mails.count { !it.isRead } else null,
-            detail = if (mailConnected) "$criticalMails kritik · $replyMails yanıt bekliyor" else "Bağlı değil",
-            onOpen = onOpenMail
         ),
         HomeModule(
             "calendar", "Takvim", Icons.Outlined.CalendarMonth, ModuleAccent.NEUTRAL,
@@ -230,7 +219,7 @@ fun HomeScreen(
                 history = history,
                 now = now,
                 openTasks = openTasks,
-                replyMails = if (mailConnected) replyMails else 0
+                replyMails = 0
             )
 
             ReorderableModuleGrid(

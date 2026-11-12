@@ -8,7 +8,24 @@ import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.History
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -39,12 +56,13 @@ import androidx.compose.ui.unit.dp
 import com.artsistem.assistme.reminder.Settings
 
 /** Uygulama ayarları: alarm melodisi + ele alınca sessize alma. */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit, onCheckUpdate: () -> Unit) {
+fun SettingsScreen(onBack: () -> Unit, onCheckUpdate: () -> Unit, onOpenHistory: () -> Unit) {
     val context = LocalContext.current
     var soundUri by remember { mutableStateOf(Settings.getAlarmSoundUri(context)) }
     var pickupMute by remember { mutableStateOf(Settings.isPickupMuteEnabled(context)) }
+    var alarmBg by remember { mutableStateOf(Settings.getAlarmBgColor(context)) }
 
     // Sistem zil sesi seçicisi (önizlemeyi kendisi çalar).
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -72,7 +90,12 @@ fun SettingsScreen(onBack: () -> Unit, onCheckUpdate: () -> Unit) {
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(androidx.compose.foundation.rememberScrollState())
+        ) {
             Text(
                 "Alarm",
                 style = MaterialTheme.typography.labelLarge,
@@ -97,6 +120,52 @@ fun SettingsScreen(onBack: () -> Unit, onCheckUpdate: () -> Unit) {
             )
             HorizontalDivider()
             ListItem(
+                leadingContent = { Icon(Icons.Filled.Palette, contentDescription = null) },
+                headlineContent = { Text("Alarm ekranı rengi") },
+                supportingContent = {
+                    Text(AlarmBgPalette.firstOrNull { it.first == alarmBg }?.second ?: "Özel")
+                }
+            )
+            FlowRow(
+                modifier = Modifier.padding(start = 72.dp, end = 16.dp, bottom = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                val defaultBg = MaterialTheme.colorScheme.errorContainer
+                AlarmBgPalette.forEach { (argb, name) ->
+                    val c = if (argb == 0) defaultBg else Color(argb)
+                    val selected = argb == alarmBg
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(c)
+                            .border(
+                                width = if (selected) 3.dp else 1.dp,
+                                color = if (selected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.outlineVariant,
+                                shape = CircleShape
+                            )
+                            .clickable {
+                                alarmBg = argb
+                                Settings.setAlarmBgColor(context, argb)
+                            }
+                            .semantics { contentDescription = name },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (selected) {
+                            Icon(
+                                Icons.Filled.Check,
+                                contentDescription = null,
+                                tint = if (argb == 0) MaterialTheme.colorScheme.onErrorContainer else alarmContentColor(c),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+            }
+            HorizontalDivider()
+            ListItem(
                 modifier = Modifier.clickable {
                     pickupMute = !pickupMute
                     Settings.setPickupMuteEnabled(context, pickupMute)
@@ -104,7 +173,7 @@ fun SettingsScreen(onBack: () -> Unit, onCheckUpdate: () -> Unit) {
                 leadingContent = { Icon(Icons.Filled.PanTool, contentDescription = null) },
                 headlineContent = { Text("Eline alınca sessize al") },
                 supportingContent = {
-                    Text("Alarm çalarken telefonu kaldırınca ses kesilir, alarm ekranı açık kalır. Ses tuşları da sessize alır.")
+                    Text("Alarm çalarken telefonu kaldırınca ses ve titreşim kesilir, alarm ekranı açık kalır. Ses tuşları da sessize alır.")
                 },
                 trailingContent = {
                     Switch(checked = pickupMute, onCheckedChange = {
@@ -124,6 +193,12 @@ fun SettingsScreen(onBack: () -> Unit, onCheckUpdate: () -> Unit) {
                 leadingContent = { Icon(Icons.Filled.SystemUpdate, contentDescription = null) },
                 headlineContent = { Text("Güncellemeleri denetle") },
                 supportingContent = { Text("Sürüm ${AppUpdater.currentVersionName(context)}") }
+            )
+            ListItem(
+                modifier = Modifier.clickable(onClick = onOpenHistory),
+                leadingContent = { Icon(Icons.Filled.History, contentDescription = null) },
+                headlineContent = { Text("Sürüm geçmişi") },
+                supportingContent = { Text("Hangi sürümde neler geldi") }
             )
         }
     }

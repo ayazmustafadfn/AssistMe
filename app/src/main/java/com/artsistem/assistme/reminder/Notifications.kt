@@ -34,10 +34,16 @@ object Notifications {
      */
     private const val CHANNEL_ALARM_BASE = "alarms"
 
-    private fun alarmChannelId(context: Context): String {
-        val v = Settings.getAlarmChannelVersion(context)
-        return if (v == 0) CHANNEL_ALARM_BASE else "${CHANNEL_ALARM_BASE}_$v"
-    }
+    /**
+     * Alarm kanalı artık SESSİZ ve titreşimsiz: ses/titreşimin tek kaynağı
+     * [AlarmPlayer]. (Eskiden kanal da melodiyi çalıyordu → ele alınca
+     * oynatıcı susturulsa bile kanal sesi sürüyordu.) Kanal ayarı sonradan
+     * değişmediği için yeni kimlik; eski "alarms*" kanalları silinir.
+     */
+    private const val CHANNEL_ALARM_SILENT = "alarm_silent_v1"
+
+    @Suppress("UNUSED_PARAMETER")
+    private fun alarmChannelId(context: Context): String = CHANNEL_ALARM_SILENT
 
     private const val GROUP_KEY = "com.artsistem.assistme.REMINDERS"
 
@@ -64,23 +70,17 @@ object Notifications {
             manager.notificationChannels
                 .filter { it.id.startsWith(CHANNEL_ALARM_BASE) && it.id != alarmChannelId }
                 .forEach { manager.deleteNotificationChannel(it.id) }
-            val alarmUri = Settings.getAlarmSoundUri(context)
-            val attrs = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_ALARM)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build()
             val channel = NotificationChannel(
                 alarmChannelId,
                 context.getString(R.string.channel_alarms_name),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = context.getString(R.string.channel_alarms_desc)
-                enableVibration(true)
-                vibrationPattern = longArrayOf(0, 1000, 1000)
+                enableVibration(false)
+                setSound(null, null)
                 setShowBadge(true)
                 setBypassDnd(true)
                 lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
-                if (alarmUri != null) setSound(alarmUri, attrs)
             }
             manager.createNotificationChannel(channel)
         }
@@ -98,6 +98,7 @@ object Notifications {
             putExtra(AlarmActivity.EXTRA_TITLE, reminder.title)
             putExtra(AlarmActivity.EXTRA_NOTE, reminder.note)
             putExtra(AlarmActivity.EXTRA_REPEATING, reminder.isRepeating)
+            putExtra(AlarmActivity.EXTRA_VIBRATE_ONLY, reminder.vibrateOnly)
         }
         val fullScreenIntent = PendingIntent.getActivity(
             context,
@@ -118,6 +119,13 @@ object Notifications {
             NotificationActionReceiver.ACTION_SNOOZE,
             requestCode = notificationId * 10 + 3,
             snoozeMinutes = Settings.SNOOZE_SHORT_MINUTES
+        )
+        // Bildirim kaydırılıp kapatılırsa alarm sesi de sussun.
+        val dismissIntent = actionPendingIntent(
+            context,
+            reminder.id,
+            NotificationActionReceiver.ACTION_DISMISS,
+            requestCode = notificationId * 10 + 5
         )
         val snooze60Intent = actionPendingIntent(
             context,
@@ -143,6 +151,7 @@ object Notifications {
             .setContentIntent(fullScreenIntent)
             // Asıl alarm davranışı: tam ekran niyet.
             .setFullScreenIntent(fullScreenIntent, true)
+            .setDeleteIntent(dismissIntent)
             .setGroup(GROUP_KEY)
             .addAction(R.drawable.ic_done, context.getString(R.string.action_completed), doneIntent)
             .addAction(R.drawable.ic_snooze, context.getString(R.string.snooze_short), snooze15Intent)
@@ -157,6 +166,8 @@ object Notifications {
         } catch (_: SecurityException) {
             // POST_NOTIFICATIONS izni verilmemiş; sessizce geç.
         }
+        // Ses/titreşim kanaldan değil buradan: tam ekran açılmasa da çalar.
+        AlarmPlayer.start(context, reminder.vibrateOnly)
     }
 
     fun cancel(context: Context, reminderId: Long) {
